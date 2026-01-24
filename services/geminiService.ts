@@ -1,15 +1,13 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Trade, AIReview } from "../types";
 
-/**
- * Generates an AI review for a trade using gemini-3-flash-preview.
- */
+const API_KEY = process.env.API_KEY || '';
+
 export const getAIReviewForTrade = async (trade: Trade): Promise<AIReview | null> => {
-  // Use process.env.API_KEY directly as per GenAI coding guidelines
-  if (!process.env.API_KEY) return null;
+  if (!API_KEY) return null;
   
-  // Create a new GoogleGenAI instance right before making an API call
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
   
   try {
     const response = await ai.models.generateContent({
@@ -36,7 +34,6 @@ export const getAIReviewForTrade = async (trade: Trade): Promise<AIReview | null
       }
     });
 
-    // Access the text property directly from GenerateContentResponse
     return JSON.parse(response.text.trim()) as AIReview;
   } catch (error) {
     console.error("AI Review error:", error);
@@ -44,15 +41,10 @@ export const getAIReviewForTrade = async (trade: Trade): Promise<AIReview | null
   }
 };
 
-/**
- * Generates weekly performance insights using gemini-3-pro-preview with thinking budget.
- */
 export const getWeeklyInsights = async (trades: Trade[]): Promise<string | null> => {
-  // Use process.env.API_KEY directly as per GenAI coding guidelines
-  if (!process.env.API_KEY || trades.length === 0) return null;
+  if (!API_KEY || trades.length === 0) return null;
   
-  // Create a new GoogleGenAI instance right before making an API call
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
   
   try {
     const response = await ai.models.generateContent({
@@ -64,12 +56,10 @@ export const getWeeklyInsights = async (trades: Trade[]): Promise<string | null>
       `,
       config: {
         systemInstruction: "You are an expert performance coach for hedge fund traders. Analyze the batch of trades for patterns in behavior, timing, and risk management. Provide a high-level summary, identify the biggest psychological leak, and suggest a focus for next week.",
-        // thinkingConfig is available for Gemini 3 series models
         thinkingConfig: { thinkingBudget: 2000 }
       }
     });
 
-    // Access the text property directly from GenerateContentResponse
     return response.text;
   } catch (error) {
     console.error("Weekly Insights error:", error);
@@ -77,15 +67,10 @@ export const getWeeklyInsights = async (trades: Trade[]): Promise<string | null>
   }
 };
 
-/**
- * Answers performance queries about trade history using gemini-3-pro-preview.
- */
 export const queryTradeHistory = async (query: string, trades: Trade[]): Promise<string | null> => {
-  // Use process.env.API_KEY directly as per GenAI coding guidelines
-  if (!process.env.API_KEY) return null;
+  if (!API_KEY) return null;
   
-  // Create a new GoogleGenAI instance right before making an API call
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
   
   try {
     const response = await ai.models.generateContent({
@@ -100,7 +85,6 @@ export const queryTradeHistory = async (query: string, trades: Trade[]): Promise
       }
     });
 
-    // Access the text property directly from GenerateContentResponse
     return response.text;
   } catch (error) {
     console.error("Query error:", error);

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Trade } from './types';
-import { getStoredTrades, saveTrades } from './services/storageService';
+import { getStoredTrades, saveTrades, exportTradesToCSV } from './services/storageService';
 import Dashboard from './components/Dashboard';
 import TradeList from './components/TradeList';
 import TradeEntryForm from './components/TradeEntryForm';
@@ -54,6 +54,10 @@ const App: React.FC = () => {
     setSelectedTrade(null);
   };
 
+  const handleExport = () => {
+    exportTradesToCSV(trades);
+  };
+
   const navItems = [
     { id: 'dashboard' as Tab, label: 'Stats', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg> },
     { id: 'journal' as Tab, label: 'Journal', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg> },
@@ -71,15 +75,24 @@ const App: React.FC = () => {
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-black text-lg">T</div>
           <span className="font-bold text-lg tracking-tight">TradeMind <span className="text-blue-500">AI</span></span>
         </div>
-        <button 
-          onClick={() => {
-            setEditingTrade(null);
-            setShowEntryForm(true);
-          }}
-          className="bg-blue-600 p-2 rounded-lg text-white shadow-lg shadow-blue-500/10"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleExport}
+            className="p-2 text-slate-400 hover:text-white transition-colors"
+            title="Export CSV"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          </button>
+          <button 
+            onClick={() => {
+              setEditingTrade(null);
+              setShowEntryForm(true);
+            }}
+            className="bg-blue-600 p-2 rounded-lg text-white shadow-lg shadow-blue-500/10"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+          </button>
+        </div>
       </header>
 
       {/* Desktop Sidebar Navigation */}
@@ -101,7 +114,14 @@ const App: React.FC = () => {
           ))}
         </div>
 
-        <div className="p-4 border-t border-slate-800">
+        <div className="p-4 border-t border-slate-800 space-y-2">
+          <button 
+            onClick={handleExport}
+            className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2 px-4 rounded-xl flex items-center justify-center gap-2 transition-all border border-slate-700"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            <span className="text-sm">Export CSV</span>
+          </button>
           <button 
             onClick={() => {
               setEditingTrade(null);

@@ -23,7 +23,7 @@
         font-family: 'Inter', sans-serif;
         background-color: #0f172a;
         color: #f8fafc;
-        overscroll-behavior-y: contain;
+        overscroll-behavior-y: contain; /* Prevents pull-to-refresh on mobile */
       }
       ::-webkit-scrollbar {
         width: 8px;
@@ -38,6 +38,7 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #475569;
       }
+      /* Prevent text selection and long-press menus in PWA mode */
       .no-select {
         -webkit-touch-callout: none;
         -webkit-user-select: none;
