@@ -61,6 +61,13 @@ export interface AIReview {
   timestamp: number;
 }
 
+export interface Attachment {
+  id: string;
+  name: string;
+  type: string;
+  data: string; // Base64
+}
+
 export interface Trade {
   id: string;
   userId: string;
@@ -78,7 +85,7 @@ export interface Trade {
   notes: string;
   optionDetails?: OptionDetails;
   aiReview?: AIReview;
-  screenshot?: string;
+  attachments?: Attachment[];
   emotions: string[];
   mistakes: string[];
   strategies: string[];

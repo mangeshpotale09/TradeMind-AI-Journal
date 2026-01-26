@@ -56,9 +56,9 @@ const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
     const rrr = avgLoss !== 0 ? (avgWin / avgLoss) : (winCount > 0 ? 99 : 0);
     const profitFactor = totalLossAmount !== 0 ? (totalWinAmount / totalLossAmount) : (totalWinAmount > 0 ? 99 : 0);
 
-    const sortedByGross = [...closedTrades].sort((a, b) => calculateGrossPnL(b) - calculateGrossPnL(a));
-    const bestTrade = sortedByGross.length > 0 ? sortedByGross[0] : null;
-    const worstTrade = sortedByGross.length > 0 ? sortedByGross[sortedByGross.length - 1] : null;
+    const sortedByNet = [...closedTrades].sort((a, b) => calculatePnL(b) - calculatePnL(a));
+    const bestTradePnL = sortedByNet.length > 0 ? calculatePnL(sortedByNet[0]) : 0;
+    const worstTradePnL = sortedByNet.length > 0 ? calculatePnL(sortedByNet[sortedByNet.length - 1]) : 0;
 
     let runningTotal = 0;
     const chartData = [...closedTrades]
@@ -82,8 +82,8 @@ const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
       avgLoss,
       rrr,
       profitFactor,
-      bestTrade,
-      worstTrade,
+      bestTradePnL,
+      worstTradePnL,
       chartData, 
       closedCount: closedTrades.length 
     };
@@ -139,13 +139,37 @@ const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-4">
         <StatCard 
           label="Net P&L" 
           value={`₹${stats.totalNetPnL.toLocaleString()}`} 
-          subValue={`Fees: ₹${stats.totalFees.toLocaleString()}`}
+          subValue={`Gross: ₹${stats.totalGrossPnL.toLocaleString()}`}
           trend={stats.totalNetPnL >= 0 ? 'up' : 'down'}
           color={stats.totalNetPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}
+        />
+        <StatCard 
+          label="Total Trades" 
+          value={stats.closedCount} 
+          subValue="Completed Cycles"
+          color="text-slate-200"
+        />
+        <StatCard 
+          label="Largest Win" 
+          value={`₹${stats.bestTradePnL.toLocaleString()}`} 
+          subValue="Max Realized Profit"
+          color="text-emerald-400"
+        />
+        <StatCard 
+          label="Largest Loss" 
+          value={`₹${stats.worstTradePnL.toLocaleString()}`} 
+          subValue="Max Realized Loss"
+          color="text-red-400"
+        />
+        <StatCard 
+          label="Brokerages" 
+          value={`₹${stats.totalFees.toLocaleString()}`} 
+          subValue="Total Platform Fees"
+          color="text-red-400"
         />
         <StatCard 
           label="Win Rate" 

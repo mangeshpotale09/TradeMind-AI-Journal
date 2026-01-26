@@ -35,7 +35,7 @@ const App: React.FC = () => {
         setCurrentUser(freshUser);
       }
       
-      // Admin sees ALL trades, Users see only theirs (Read-only Preview)
+      // Admin sees ALL trades, Users see only theirs
       const tradesToLoad = freshUser?.role === UserRole.ADMIN 
         ? getStoredTrades() 
         : getStoredTrades(currentUser.id);
@@ -45,50 +45,73 @@ const App: React.FC = () => {
 
   // Security guard for restricted tabs
   useEffect(() => {
-    const adminOnlyTabs: Tab[] = ['admin', 'insights'];
+    const adminOnlyTabs: Tab[] = ['admin']; // insights is now available to Pro users (Approved)
     if (adminOnlyTabs.includes(activeTab) && currentUser?.role !== UserRole.ADMIN) {
       setActiveTab('dashboard');
     }
   }, [activeTab, currentUser]);
 
   const handleAddTrade = (newTradeData: Partial<Trade>) => {
-    if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
+    if (!currentUser) return;
     const newTrade: Trade = {
       ...(newTradeData as Trade),
       userId: currentUser.id
     };
     
+    // Admin sees all, Users see theirs. We save to the global pool.
     const allStored = [...getStoredTrades(), newTrade];
     saveTrades(allStored);
     
-    // Refresh local state (Admin sees all)
-    setTrades(allStored);
+    // Refresh local state based on role
+    const tradesToLoad = currentUser.role === UserRole.ADMIN 
+      ? allStored 
+      : allStored.filter(t => t.userId === currentUser.id);
+      
+    setTrades(tradesToLoad);
     setShowEntryForm(false);
   };
 
   const handleUpdateTrade = (updatedTrade: Trade) => {
-    if (currentUser?.role !== UserRole.ADMIN) return;
+    if (!currentUser) return;
+    // Check ownership if not admin
+    if (currentUser.role !== UserRole.ADMIN && updatedTrade.userId !== currentUser.id) return;
+
     const allStored = getStoredTrades().map(t => t.id === updatedTrade.id ? updatedTrade : t);
     saveTrades(allStored);
     
     // Refresh local state
-    setTrades(allStored);
+    const tradesToLoad = currentUser.role === UserRole.ADMIN 
+      ? allStored 
+      : allStored.filter(t => t.userId === currentUser.id);
+
+    setTrades(tradesToLoad);
     setSelectedTrade(updatedTrade);
     setEditingTrade(null);
   };
 
   const handleDeleteTrade = (id: string) => {
-    if (currentUser?.role !== UserRole.ADMIN) return;
-    const allStored = getStoredTrades().filter(t => t.id !== id);
-    saveTrades(allStored);
+    if (!currentUser) return;
+    const allStored = getStoredTrades();
+    const tradeToDelete = allStored.find(t => t.id === id);
+    if (!tradeToDelete) return;
+
+    // Check ownership if not admin
+    if (currentUser.role !== UserRole.ADMIN && tradeToDelete.userId !== currentUser.id) return;
+
+    const filteredStored = allStored.filter(t => t.id !== id);
+    saveTrades(filteredStored);
     
     // Refresh local state
-    setTrades(allStored);
+    const tradesToLoad = currentUser.role === UserRole.ADMIN 
+      ? filteredStored 
+      : filteredStored.filter(t => t.userId === currentUser.id);
+
+    setTrades(tradesToLoad);
     setSelectedTrade(null);
   };
 
   const handleExport = () => {
-    if (currentUser?.role === UserRole.ADMIN) {
+    if (currentUser) {
       exportTradesToCSV(trades);
     }
   };
@@ -124,8 +147,8 @@ const App: React.FC = () => {
     { id: 'analysis' as Tab, label: 'Analytics', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg> },
     { id: 'mistakes' as Tab, label: 'Discipline', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> },
     { id: 'emotions' as Tab, label: 'Psychology', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg> },
+    { id: 'insights' as Tab, label: 'AI Coach', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> },
     ...(isAdmin ? [
-      { id: 'insights' as Tab, label: 'AI Coach', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> },
       { id: 'admin' as Tab, label: 'Admin Hub', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg> }
     ] : [])
   ];
@@ -155,7 +178,7 @@ const App: React.FC = () => {
              </div>
           ) : (
             <div className="px-4 py-2 bg-emerald-500/5 border border-emerald-500/10 rounded-xl mb-4">
-               <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest text-center">Preview Mode Active</p>
+               <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest text-center">Personal Terminal Active</p>
             </div>
           )}
           
@@ -164,18 +187,14 @@ const App: React.FC = () => {
             Logout Terminal
           </button>
           
-          {isAdmin && (
-            <>
-              <button onClick={handleExport} className="w-full bg-[#111827] hover:bg-[#1e293b] text-slate-300 font-semibold py-2 px-4 rounded-xl flex items-center justify-center gap-2 transition-all border border-[#1e293b]">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                <span className="text-xs">Export CSV</span>
-              </button>
-              <button onClick={() => { setEditingTrade(null); setShowEntryForm(true); }} className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/10">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-                <span>Log Trade</span>
-              </button>
-            </>
-          )}
+          <button onClick={handleExport} className="w-full bg-[#111827] hover:bg-[#1e293b] text-slate-300 font-semibold py-2 px-4 rounded-xl flex items-center justify-center gap-2 transition-all border border-[#1e293b]">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            <span className="text-xs">Export CSV</span>
+          </button>
+          <button onClick={() => { setEditingTrade(null); setShowEntryForm(true); }} className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/10">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+            <span>Log Trade</span>
+          </button>
         </div>
       </nav>
 
@@ -189,11 +208,9 @@ const App: React.FC = () => {
           <button onClick={handleLogout} className="text-slate-500 p-2 hover:text-red-500 transition-colors" title="Logout">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
           </button>
-          {isAdmin && (
-            <button onClick={() => { setEditingTrade(null); setShowEntryForm(true); }} className="bg-emerald-500 p-2 rounded-lg text-slate-900 shadow-lg shadow-emerald-500/20">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-            </button>
-          )}
+          <button onClick={() => { setEditingTrade(null); setShowEntryForm(true); }} className="bg-emerald-500 p-2 rounded-lg text-slate-900 shadow-lg shadow-emerald-500/20">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+          </button>
         </div>
       </header>
 
@@ -223,7 +240,7 @@ const App: React.FC = () => {
               <p className="text-slate-500 text-sm mt-1">
                 {isAdmin 
                   ? 'Platform-wide oversight and performance auditing.' 
-                  : `Previewing Terminal: ${currentUser.name}. (Read-only Access)`}
+                  : `Terminal Session: ${currentUser.name}`}
               </p>
             </div>
             {/* Quick Desktop Logout Header Button */}
@@ -241,14 +258,14 @@ const App: React.FC = () => {
             {activeTab === 'analysis' && <AnalysisView trades={trades} />}
             {activeTab === 'mistakes' && <MistakesView trades={trades} />}
             {activeTab === 'emotions' && <EmotionsView trades={trades} />}
-            {activeTab === 'insights' && isAdmin && <AIInsightsView trades={trades} />}
+            {activeTab === 'insights' && <AIInsightsView trades={trades} />}
             {activeTab === 'admin' && isAdmin && <AdminView onLogout={handleLogout} />}
           </div>
         </div>
       </main>
 
       {/* Overlays */}
-      {showEntryForm && isAdmin && (
+      {showEntryForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-2xl my-auto">
             <TradeEntryForm initialTrade={editingTrade || undefined} onAdd={editingTrade ? handleUpdateTrade : handleAddTrade} onCancel={() => { setShowEntryForm(false); setEditingTrade(null); }} />
@@ -262,10 +279,11 @@ const App: React.FC = () => {
             <TradeDetail 
               trade={selectedTrade} 
               onUpdate={handleUpdateTrade} 
-              onEdit={(t) => { if(isAdmin) { setEditingTrade(t); setShowEntryForm(true); setSelectedTrade(null); } }} 
+              onEdit={(t) => { setEditingTrade(t); setShowEntryForm(true); setSelectedTrade(null); }} 
               onDelete={handleDeleteTrade} 
               onClose={() => setSelectedTrade(null)} 
               isAdmin={isAdmin}
+              currentUserId={currentUser.id}
             />
           </div>
         </div>

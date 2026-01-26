@@ -21,6 +21,32 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   };
 
+  const weeklyBreakdown = useMemo(() => {
+    // Group by week (ISO week or similar)
+    const weeks: Record<string, { week: string; win: number; loss: number; grossProfit: number; count: number }> = {};
+    
+    closedTrades.forEach(t => {
+      const exitDate = new Date(t.exitDate!);
+      // Simple week calculation: Year-WeekNumber
+      const firstDayOfYear = new Date(exitDate.getFullYear(), 0, 1);
+      const pastDaysOfYear = (exitDate.getTime() - firstDayOfYear.getTime()) / 86400000;
+      const weekNum = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+      const weekKey = `${exitDate.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+      
+      if (!weeks[weekKey]) {
+        weeks[weekKey] = { week: weekKey, win: 0, loss: 0, grossProfit: 0, count: 0 };
+      }
+      
+      const pnl = calculateGrossPnL(t);
+      weeks[weekKey].count++;
+      weeks[weekKey].grossProfit += pnl;
+      if (pnl > 0) weeks[weekKey].win++;
+      else if (pnl < 0) weeks[weekKey].loss++;
+    });
+
+    return Object.values(weeks).sort((a, b) => b.week.localeCompare(a.week)).slice(0, 12); // Last 12 weeks
+  }, [closedTrades]);
+
   const weekdayData = useMemo(() => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const results = days.map(day => ({ day, win: 0, loss: 0, pnl: 0, count: 0 }));
@@ -35,16 +61,6 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
     });
 
     return results.filter(r => r.day !== 'Sunday' && r.day !== 'Saturday');
-  }, [closedTrades]);
-
-  const hourlyData = useMemo(() => {
-    const hours = Array.from({ length: 24 }, (_, i) => ({ hour: i, pnl: 0, count: 0 }));
-    closedTrades.forEach(t => {
-      const hour = new Date(t.entryDate).getHours();
-      hours[hour].pnl += calculateGrossPnL(t);
-      hours[hour].count++;
-    });
-    return hours.filter(h => h.count > 0);
   }, [closedTrades]);
 
   const strategyData = useMemo(() => {
@@ -103,6 +119,52 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
           </div>
         </div>
         <PnLCalendar viewDate={viewDate} data={calendarData} />
+      </section>
+
+      {/* Weekly Performance Breakdown */}
+      <section className="bg-[#0e1421] p-6 rounded-2xl border border-[#1e293b] shadow-xl">
+        <h3 className="text-lg font-black mb-6 text-white flex items-center gap-3">
+           <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+           Weekly Performance Breakdown
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-[#0a0f1d] text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-[#1e293b]">
+                <th className="px-6 py-4">Week Identifier</th>
+                <th className="px-6 py-4">Total Trades</th>
+                <th className="px-6 py-4">Wins / Losses</th>
+                <th className="px-6 py-4">Win Rate</th>
+                <th className="px-6 py-4 text-right">Gross Profit</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#1e293b]">
+              {weeklyBreakdown.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-10 text-center text-slate-600 font-bold uppercase tracking-tighter italic">No closed trade data available for weekly analysis.</td>
+                </tr>
+              ) : weeklyBreakdown.map((wb) => (
+                <tr key={wb.week} className="hover:bg-[#111827] transition-colors">
+                  <td className="px-6 py-4 font-black text-white">{wb.week}</td>
+                  <td className="px-6 py-4 text-slate-300 font-mono">{wb.count}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex gap-2">
+                      <span className="text-emerald-400 font-bold">{wb.win}W</span>
+                      <span className="text-slate-600">/</span>
+                      <span className="text-red-400 font-bold">{wb.loss}L</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 font-mono text-slate-400">
+                    {((wb.win / wb.count) * 100).toFixed(1)}%
+                  </td>
+                  <td className={`px-6 py-4 text-right font-mono font-black ${wb.grossProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    ₹{wb.grossProfit.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Trade, TradeStatus, TradeSide } from '../types';
+import { Trade, TradeStatus, TradeSide, TradeType } from '../types';
 import { calculatePnL, getRegisteredUsers } from '../services/storageService';
 
 interface TradeListProps {
@@ -18,6 +18,11 @@ const TradeList: React.FC<TradeListProps> = ({ trades, onSelect, isAdmin }) => {
     return user ? user.name : 'Unknown';
   };
 
+  const getCapitalUsed = (trade: Trade): number => {
+    const multiplier = trade.type === TradeType.OPTION ? 100 : 1;
+    return trade.entryPrice * trade.quantity * multiplier;
+  };
+
   return (
     <div className="bg-[#0a0f1d] rounded-2xl border border-[#1e293b] shadow-xl overflow-hidden">
       <div className="overflow-x-auto">
@@ -29,6 +34,7 @@ const TradeList: React.FC<TradeListProps> = ({ trades, onSelect, isAdmin }) => {
               <th className="px-6 py-5">Side</th>
               <th className="px-6 py-5">Status</th>
               <th className="px-6 py-5">Entry Price</th>
+              <th className="px-6 py-5">Capital Used</th>
               <th className="px-6 py-5">Net P&L</th>
               <th className="px-6 py-5 text-right">Coach Score</th>
             </tr>
@@ -36,12 +42,13 @@ const TradeList: React.FC<TradeListProps> = ({ trades, onSelect, isAdmin }) => {
           <tbody className="divide-y divide-[#1e293b]">
             {sortedTrades.length === 0 ? (
               <tr>
-                <td colSpan={isAdmin ? 7 : 6} className="px-6 py-12 text-center text-slate-600 font-bold uppercase tracking-tighter italic">
+                <td colSpan={isAdmin ? 8 : 7} className="px-6 py-12 text-center text-slate-600 font-bold uppercase tracking-tighter italic">
                   No trades logged in {isAdmin ? 'the platform' : 'your tape'} yet.
                 </td>
               </tr>
             ) : sortedTrades.map((trade) => {
               const pnl = calculatePnL(trade);
+              const capitalUsed = getCapitalUsed(trade);
               return (
                 <tr 
                   key={trade.id} 
@@ -70,6 +77,9 @@ const TradeList: React.FC<TradeListProps> = ({ trades, onSelect, isAdmin }) => {
                   <td className="px-6 py-4">
                     <div className="text-sm font-mono text-slate-300">₹{trade.entryPrice.toLocaleString()}</div>
                     <div className="text-[10px] text-slate-600">{new Date(trade.entryDate).toLocaleDateString()}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-mono text-slate-400">₹{capitalUsed.toLocaleString()}</div>
                   </td>
                   <td className={`px-6 py-4 font-mono font-bold ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {trade.status === TradeStatus.CLOSED ? `₹${pnl.toLocaleString()}` : '--'}
