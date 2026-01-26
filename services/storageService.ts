@@ -110,9 +110,9 @@ export const getStoredTrades = (userId?: string): Trade[] => {
 // --- Calculations ---
 export const calculateGrossPnL = (trade: Trade): number => {
   if (trade.status === 'OPEN' || trade.exitPrice === undefined) return 0;
-  const multiplier = trade.type === 'OPTION' ? 100 : 1;
-  const entryTotal = trade.entryPrice * trade.quantity * multiplier;
-  const exitTotal = trade.exitPrice * trade.quantity * multiplier;
+  // Multiplier removed to treat quantity as total units/quantity
+  const entryTotal = trade.entryPrice * trade.quantity;
+  const exitTotal = trade.exitPrice * trade.quantity;
   return trade.side === 'LONG' ? (exitTotal - entryTotal) : (entryTotal - exitTotal);
 };
 

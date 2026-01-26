@@ -35,56 +35,42 @@ const App: React.FC = () => {
         setCurrentUser(freshUser);
       }
       
-      // Admin sees ALL trades, Users see only theirs
-      const tradesToLoad = freshUser?.role === UserRole.ADMIN 
-        ? getStoredTrades() 
-        : getStoredTrades(currentUser.id);
+      // STRICT PRIVACY: Every user (including Admin) ONLY sees their own trades in their journal/dashboard.
+      const tradesToLoad = getStoredTrades(currentUser.id);
       setTrades(tradesToLoad);
     }
   }, [currentUser?.id, currentUser?.role, activeTab]);
 
   // Security guard for restricted tabs
   useEffect(() => {
-    const adminOnlyTabs: Tab[] = ['admin']; // insights is now available to Pro users (Approved)
+    const adminOnlyTabs: Tab[] = ['admin'];
     if (adminOnlyTabs.includes(activeTab) && currentUser?.role !== UserRole.ADMIN) {
       setActiveTab('dashboard');
     }
   }, [activeTab, currentUser]);
 
-  const handleAddTrade = (newTradeData: Partial<Trade>) => {
+  const handleAddTrade = (newTrade: Trade) => {
     if (!currentUser) return;
-    const newTrade: Trade = {
-      ...(newTradeData as Trade),
-      userId: currentUser.id
-    };
     
-    // Admin sees all, Users see theirs. We save to the global pool.
+    // Save to global storage
     const allStored = [...getStoredTrades(), newTrade];
     saveTrades(allStored);
     
-    // Refresh local state based on role
-    const tradesToLoad = currentUser.role === UserRole.ADMIN 
-      ? allStored 
-      : allStored.filter(t => t.userId === currentUser.id);
-      
-    setTrades(tradesToLoad);
+    // Update local state (filtered to current user)
+    setTrades(allStored.filter(t => t.userId === currentUser.id));
     setShowEntryForm(false);
   };
 
   const handleUpdateTrade = (updatedTrade: Trade) => {
     if (!currentUser) return;
-    // Check ownership if not admin
-    if (currentUser.role !== UserRole.ADMIN && updatedTrade.userId !== currentUser.id) return;
+    // Security check: only update if owned by user
+    if (updatedTrade.userId !== currentUser.id) return;
 
     const allStored = getStoredTrades().map(t => t.id === updatedTrade.id ? updatedTrade : t);
     saveTrades(allStored);
     
-    // Refresh local state
-    const tradesToLoad = currentUser.role === UserRole.ADMIN 
-      ? allStored 
-      : allStored.filter(t => t.userId === currentUser.id);
-
-    setTrades(tradesToLoad);
+    // Refresh local state (filtered)
+    setTrades(allStored.filter(t => t.userId === currentUser.id));
     setSelectedTrade(updatedTrade);
     setEditingTrade(null);
   };
@@ -93,20 +79,13 @@ const App: React.FC = () => {
     if (!currentUser) return;
     const allStored = getStoredTrades();
     const tradeToDelete = allStored.find(t => t.id === id);
-    if (!tradeToDelete) return;
-
-    // Check ownership if not admin
-    if (currentUser.role !== UserRole.ADMIN && tradeToDelete.userId !== currentUser.id) return;
+    if (!tradeToDelete || tradeToDelete.userId !== currentUser.id) return;
 
     const filteredStored = allStored.filter(t => t.id !== id);
     saveTrades(filteredStored);
     
-    // Refresh local state
-    const tradesToLoad = currentUser.role === UserRole.ADMIN 
-      ? filteredStored 
-      : filteredStored.filter(t => t.userId === currentUser.id);
-
-    setTrades(tradesToLoad);
+    // Refresh local state (filtered)
+    setTrades(filteredStored.filter(t => t.userId === currentUser.id));
     setSelectedTrade(null);
   };
 
@@ -127,7 +106,7 @@ const App: React.FC = () => {
     return <AuthView onAuthComplete={setAppUser} />;
   }
 
-  // Admin always bypasses verification flow
+  // Admin always bypasses verification flow for themselves
   if (currentUser.role !== UserRole.ADMIN) {
     if (currentUser.status === UserStatus.PENDING) {
       return <PaymentView user={currentUser} onPaymentSubmitted={() => setAppUser({...currentUser, status: UserStatus.WAITING_APPROVAL})} />;
@@ -140,7 +119,6 @@ const App: React.FC = () => {
 
   const isAdmin = currentUser.role === UserRole.ADMIN;
 
-  // Tabs list for navigation
   const navItems = [
     { id: 'dashboard' as Tab, label: 'Performance', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg> },
     { id: 'journal' as Tab, label: 'Trade Logs', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg> },
@@ -155,7 +133,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#070a13] text-slate-200">
-      {/* Desktop Sidebar */}
       <nav className="fixed top-0 left-0 h-full w-64 bg-[#0a0f1d] border-r border-[#1e293b] hidden md:flex flex-col z-40">
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center font-black text-xl shadow-lg shadow-emerald-500/20">T</div>
@@ -173,12 +150,12 @@ const App: React.FC = () => {
 
         <div className="p-4 border-t border-[#1e293b] space-y-2">
           {isAdmin ? (
-             <div className="px-4 py-2 bg-purple-500/10 border border-purple-500/20 rounded-xl mb-4">
-                <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest text-center">Master Controller Mode</p>
+             <div className="px-4 py-2 bg-purple-500/10 border border-purple-500/20 rounded-xl mb-4 text-center">
+                <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest">Master Console Mode</p>
              </div>
           ) : (
-            <div className="px-4 py-2 bg-emerald-500/5 border border-emerald-500/10 rounded-xl mb-4">
-               <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest text-center">Personal Terminal Active</p>
+            <div className="px-4 py-2 bg-emerald-500/5 border border-emerald-500/10 rounded-xl mb-4 text-center">
+               <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Personal Terminal Active</p>
             </div>
           )}
           
@@ -198,38 +175,6 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      {/* Mobile Header */}
-      <header className="fixed top-0 left-0 w-full h-16 bg-[#0a0f1d] border-b border-[#1e293b] flex items-center justify-between px-4 z-40 md:hidden">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center font-black text-lg">T</div>
-          <span className="font-bold text-lg tracking-tight text-white">TradeMind <span className="text-emerald-500">AI</span></span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={handleLogout} className="text-slate-500 p-2 hover:text-red-500 transition-colors" title="Logout">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-          </button>
-          <button onClick={() => { setEditingTrade(null); setShowEntryForm(true); }} className="bg-emerald-500 p-2 rounded-lg text-slate-900 shadow-lg shadow-emerald-500/20">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-          </button>
-        </div>
-      </header>
-
-      {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 w-full h-20 bg-[#0a0f1d] border-t border-[#1e293b] flex md:hidden items-center px-1 z-40 overflow-x-auto no-scrollbar">
-        {navItems.map(item => (
-          <button 
-            key={item.id}
-            onClick={() => setActiveTab(item.id)}
-            className={`flex flex-col items-center justify-center gap-1 transition-all min-w-[75px] h-full ${
-              activeTab === item.id ? 'text-emerald-400' : 'text-slate-500'
-            }`}
-          >
-            {item.icon}
-            <span className="text-[9px] font-black uppercase tracking-widest text-center">{item.label}</span>
-          </button>
-        ))}
-      </nav>
-
       <main className="md:pl-64 pt-20 md:pt-6 pb-24 md:pb-6 min-h-screen">
         <div className="max-w-7xl mx-auto px-4 md:px-6">
           <header className="mb-8 flex justify-between items-end">
@@ -238,12 +183,11 @@ const App: React.FC = () => {
                 {activeTab === 'admin' ? 'System Console' : `${activeTab} Summary`}
               </h1>
               <p className="text-slate-500 text-sm mt-1">
-                {isAdmin 
-                  ? 'Platform-wide oversight and performance auditing.' 
-                  : `Terminal Session: ${currentUser.name}`}
+                {isAdmin && activeTab === 'admin' 
+                  ? 'Platform-wide user registry and verification.' 
+                  : `User Terminal: ${currentUser.name}`}
               </p>
             </div>
-            {/* Quick Desktop Logout Header Button */}
             <div className="hidden md:block">
                <button onClick={handleLogout} className="flex items-center gap-2 px-5 py-2.5 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 font-black text-[10px] uppercase tracking-widest hover:bg-red-500/20 transition-all">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
@@ -254,7 +198,7 @@ const App: React.FC = () => {
 
           <div className="pb-12">
             {activeTab === 'dashboard' && <Dashboard trades={trades} />}
-            {activeTab === 'journal' && <TradeList trades={trades} onSelect={setSelectedTrade} isAdmin={isAdmin} />}
+            {activeTab === 'journal' && <TradeList trades={trades} onSelect={setSelectedTrade} isAdmin={false} />}
             {activeTab === 'analysis' && <AnalysisView trades={trades} />}
             {activeTab === 'mistakes' && <MistakesView trades={trades} />}
             {activeTab === 'emotions' && <EmotionsView trades={trades} />}
@@ -264,11 +208,15 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Overlays */}
       {showEntryForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-2xl my-auto">
-            <TradeEntryForm initialTrade={editingTrade || undefined} onAdd={editingTrade ? handleUpdateTrade : handleAddTrade} onCancel={() => { setShowEntryForm(false); setEditingTrade(null); }} />
+            <TradeEntryForm 
+              initialTrade={editingTrade || undefined} 
+              onAdd={editingTrade ? handleUpdateTrade : handleAddTrade} 
+              onCancel={() => { setShowEntryForm(false); setEditingTrade(null); }} 
+              userId={currentUser.id}
+            />
           </div>
         </div>
       )}

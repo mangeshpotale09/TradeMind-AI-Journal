@@ -6,6 +6,7 @@ interface TradeEntryFormProps {
   initialTrade?: Trade;
   onAdd: (trade: Trade) => void;
   onCancel: () => void;
+  userId: string;
 }
 
 const EMOTIONS = ['Calm', 'Fear', 'Greed', 'FOMO', 'Excited', 'Anxious', 'Confident', 'Impatient'];
@@ -37,7 +38,7 @@ const STRATEGIES = [
   'EMA Retested'
 ];
 
-const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, onCancel }) => {
+const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, onCancel, userId }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [type, setType] = useState<TradeType>(initialTrade?.type || TradeType.STOCK);
   const [symbol, setSymbol] = useState(initialTrade?.symbol || 'NIFTY 50');
@@ -87,7 +88,6 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
     }
   };
 
-  // Explicitly typing the file in the callback to resolve unknown type issues
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
@@ -119,6 +119,7 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
 
     const newTrade: Trade = {
       ...(initialTrade || {}),
+      userId: initialTrade?.userId || userId,
       id: initialTrade?.id || crypto.randomUUID(),
       symbol: finalSymbol,
       type,
@@ -223,7 +224,7 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Size (Units/Lots)</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Quantity (Units)</label>
                   <input type="number" required value={quantity} onChange={(e) => setQuantity(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono font-bold transition-all" />
                 </div>
               </div>
