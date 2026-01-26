@@ -22,6 +22,11 @@ const TradeList: React.FC<TradeListProps> = ({ trades, onSelect, isAdmin = false
     return user ? user.name : 'Unknown Subject';
   };
 
+  const formatTimestamp = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
   return (
     <div className="bg-[#0a0f1d] rounded-3xl border border-[#1e293b] shadow-xl overflow-hidden">
       <div className="overflow-x-auto">
@@ -32,8 +37,8 @@ const TradeList: React.FC<TradeListProps> = ({ trades, onSelect, isAdmin = false
               {isAdmin && <th className="px-8 py-6">Owner</th>}
               <th className="px-8 py-6">Side</th>
               <th className="px-8 py-6">Status</th>
-              <th className="px-8 py-6">Entry Price</th>
-              <th className="px-8 py-6">Exit Price</th>
+              <th className="px-8 py-6">Entry Detail</th>
+              <th className="px-8 py-6">Exit Detail</th>
               <th className="px-8 py-6">Capital Used</th>
               <th className="px-8 py-6">Net P&L</th>
               <th className="px-8 py-6 text-right">Coach Score</th>
@@ -80,13 +85,19 @@ const TradeList: React.FC<TradeListProps> = ({ trades, onSelect, isAdmin = false
                   </td>
                   <td className="px-8 py-5">
                     <div className="text-sm font-mono font-black text-slate-300">₹{trade.entryPrice.toLocaleString()}</div>
-                    <div className="text-[10px] text-slate-600 font-bold">{new Date(trade.entryDate).toLocaleDateString()}</div>
+                    <div className="text-[10px] text-slate-500 font-bold font-mono tracking-tighter whitespace-nowrap">
+                      {formatTimestamp(trade.entryDate)}
+                    </div>
                   </td>
                   <td className="px-8 py-5">
                     <div className="text-sm font-mono font-black text-slate-400">
                       {trade.exitPrice ? `₹${trade.exitPrice.toLocaleString()}` : '--'}
                     </div>
-                    {trade.exitDate && <div className="text-[10px] text-slate-600 font-bold">{new Date(trade.exitDate).toLocaleDateString()}</div>}
+                    {trade.exitDate && (
+                      <div className="text-[10px] text-slate-500 font-bold font-mono tracking-tighter whitespace-nowrap">
+                        {formatTimestamp(trade.exitDate)}
+                      </div>
+                    )}
                   </td>
                   <td className="px-8 py-5">
                     <div className="text-sm font-mono font-black text-slate-400">₹{capitalUsed.toLocaleString()}</div>

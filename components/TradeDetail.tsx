@@ -52,6 +52,11 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
     }
   };
 
+  const formatTimestamp = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+  };
+
   return (
     <div className="bg-[#0e1421] rounded-2xl border border-[#1e293b] overflow-hidden animate-in slide-in-from-right duration-300 max-h-[90vh] flex flex-col shadow-2xl">
       <div className="p-6 border-b border-[#1e293b] flex justify-between items-center bg-[#0a0f1d]/80 sticky top-0 z-10 backdrop-blur-md">
@@ -66,7 +71,10 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
                 {trade.side}
               </span>
             </h2>
-            <p className="text-slate-500 text-xs font-bold uppercase tracking-tighter">{new Date(trade.entryDate).toLocaleString()}</p>
+            <div className="flex flex-col">
+              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Opened: {formatTimestamp(trade.entryDate)}</p>
+              {trade.exitDate && <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Closed: {formatTimestamp(trade.exitDate)}</p>}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-1">

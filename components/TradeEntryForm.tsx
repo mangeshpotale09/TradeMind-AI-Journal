@@ -249,22 +249,35 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Entry Price (₹)</label>
                   <input type="number" step="0.01" required value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono font-bold" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Exit Price (₹)</label>
-                  <input type="number" step="0.01" value={exitPrice} onChange={(e) => setExitPrice(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono font-bold" placeholder="Running" />
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Entry Timestamp</label>
+                  <input type="datetime-local" required value={entryDate} onChange={(e) => setEntryDate(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-white" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Entry Timestamp</label>
-                  <input type="datetime-local" required value={entryDate} onChange={(e) => setEntryDate(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-white" />
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Exit Price (₹)</label>
+                  <input type="number" step="0.01" value={exitPrice} onChange={(e) => setExitPrice(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono font-bold" placeholder="Running" />
                 </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Exit Timestamp</label>
+                  <input 
+                    type="datetime-local" 
+                    value={exitDate} 
+                    onChange={(e) => setExitDate(e.target.value)} 
+                    className={`w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-white transition-opacity ${!exitPrice ? 'opacity-30' : 'opacity-100'}`} 
+                    disabled={!exitPrice}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Brokerage (₹)</label>
                   <input type="number" step="0.01" value={fees} onChange={(e) => setFees(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono font-bold" />
