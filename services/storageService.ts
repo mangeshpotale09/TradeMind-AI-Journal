@@ -16,7 +16,6 @@ const generateReferralCode = (name: string) => {
 export const getRegisteredUsers = (): User[] => {
   const data = localStorage.getItem(USERS_KEY);
   if (!data) {
-    // Initial Admin Account as requested
     const initialAdmin: User = {
       id: 'admin-1',
       displayId: 'TM-ADMIN',
@@ -74,7 +73,7 @@ export const registerUser = (user: Partial<User>): User => {
     expiryDate: 'Pending',
     referredBy: user.referredBy || undefined,
     ownReferralCode: generateReferralCode(user.name!),
-    hasReferralDiscount: !!user.referredBy // Mark for discount if code was used
+    hasReferralDiscount: !!user.referredBy
   };
   saveUsers([...users, newUser]);
   return newUser;
@@ -89,7 +88,6 @@ export const submitPaymentProof = (userId: string, screenshot: string) => {
   } : u);
   saveUsers(updated);
   
-  // Update session if it's the current user
   const sessionUser = getCurrentUser();
   if (sessionUser && sessionUser.id === userId) {
     setCurrentUser({ ...sessionUser, status: UserStatus.WAITING_APPROVAL, paymentScreenshot: screenshot });
@@ -102,28 +100,14 @@ export const updateUserStatus = (userId: string, status: UserStatus) => {
     if (u.id === userId) {
       const isApproved = status === UserStatus.APPROVED;
       const expiry = new Date();
-      
       let amount = 0;
       if (isApproved) {
         switch(u.selectedPlan) {
-          case PlanType.MONTHLY:
-            expiry.setMonth(expiry.getMonth() + 1);
-            amount = 299;
-            break;
-          case PlanType.SIX_MONTHS:
-            expiry.setMonth(expiry.getMonth() + 6);
-            amount = 599;
-            break;
-          case PlanType.ANNUAL:
-            expiry.setFullYear(expiry.getFullYear() + 1);
-            amount = 999;
-            break;
-          default:
-            expiry.setFullYear(expiry.getFullYear() + 1);
-            amount = 999;
+          case PlanType.MONTHLY: expiry.setMonth(expiry.getMonth() + 1); amount = 299; break;
+          case PlanType.SIX_MONTHS: expiry.setMonth(expiry.getMonth() + 6); amount = 599; break;
+          case PlanType.ANNUAL: expiry.setFullYear(expiry.getFullYear() + 1); amount = 999; break;
         }
       }
-      
       return { 
         ...u, 
         status, 
@@ -149,26 +133,44 @@ export const getStoredTrades = (userId?: string): Trade[] => {
     const allTrades: Trade[] = JSON.parse(data);
     if (userId) return allTrades.filter(t => t.userId === userId);
     return allTrades;
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 };
 
-// --- System Management ---
+// --- Master Sync Tools ---
+export const getMasterSyncString = (): string => {
+  const data = {
+    users: getRegisteredUsers(),
+    trades: getStoredTrades(),
+    timestamp: new Date().toISOString()
+  };
+  return btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+};
+
+export const importFromSyncString = (syncString: string): boolean => {
+  try {
+    const json = decodeURIComponent(escape(atob(syncString)));
+    const data = JSON.parse(json);
+    if (data.users && data.trades) {
+      saveUsers(data.users);
+      saveTrades(data.trades);
+      return true;
+    }
+    return false;
+  } catch { return false; }
+};
+
 export const exportMasterDB = () => {
-  const users = getRegisteredUsers();
-  const trades = getStoredTrades();
   const masterData = {
     version: '1.0',
     exportedAt: new Date().toISOString(),
-    users,
-    trades
+    users: getRegisteredUsers(),
+    trades: getStoredTrades()
   };
   const blob = new Blob([JSON.stringify(masterData, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `trademind-master-sync-${new Date().toISOString().split('T')[0]}.json`;
+  link.download = `trademind-master-${new Date().toISOString().split('T')[0]}.json`;
   link.click();
 };
 
@@ -181,9 +183,7 @@ export const importMasterDB = async (jsonString: string): Promise<boolean> => {
       return true;
     }
     return false;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 };
 
 // --- Calculations ---
