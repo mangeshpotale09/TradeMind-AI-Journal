@@ -66,25 +66,25 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
   ];
 
   const benefits = [
-    { icon: "📈", title: "Improves Discipline", text: "Writing down each trade helps you trade with a plan instead of on impulse. You start following rules more consistently." },
-    { icon: "📊", title: "Identifies Patterns", text: "Over time, you’ll see what strategies work and which don’t. Spot patterns in winners vs. losers and adjust accordingly." },
-    { icon: "✍️", title: "Better Decision-Making", text: "Reviewing past trades teaches you what decisions led to profits and what led to losses. This feedback loop refines your strategy." },
-    { icon: "🧠", title: "Reduces Emotional Trading", text: "Seeing your trading history objectively helps you avoid repeating emotional mistakes like revenge trading or panic exits." },
+    { icon: "📈", title: "Improves Discipline", text: "Writing down each trade—entry, exit, reasoning—helps you trade with a plan instead of on impulse. You start following rules more consistently." },
+    { icon: "📊", title: "Identifies Patterns", text: "Over time, you’ll see what strategies work and which don’t. You can spot patterns in your winners vs. losers and adjust accordingly." },
+    { icon: "✍️", title: "Better Decision-Making", text: "When you review your past trades, you learn what decisions led to profits and what led to losses. This feedback loop helps refine your strategy." },
+    { icon: "🧠", title: "Reduces Emotional Trading", text: "Seeing your trading history objectively helps you avoid repeating emotional mistakes (like revenge trading or panic exits)." },
     { icon: "📅", title: "Tracks Progress Over Time", text: "A journal shows how your performance evolves—monthly, quarterly, yearly—so you can celebrate progress or fix issues early." },
     { icon: "💡", title: "Helps You Learn Faster", text: "Keeping notes on what you were thinking during each trade makes your learning concrete. You don’t forget why you made a choice." },
-    { icon: "🧮", title: "Quantifies Your Results", text: "Get analytics like win rate, average profit/loss, and risk ratios, which helps you measure performance precisely." },
+    { icon: "🧮", title: "Quantifies Your Results", text: "Many apps provide analytics like win rate, average profit/loss, best setups, risk ratios, etc., which helps you measure performance precisely." },
     { icon: "🗂", title: "Creates Accountability", text: "Documenting trades makes you accountable to your own trading plan and goals." },
-    { icon: "📱", title: "Convenience & Accessibility", text: "With our terminal, you can log trades instantly—even on the go—so nothing gets missed." },
+    { icon: "📱", title: "Convenience & Accessibility", text: "With an app, you can log trades instantly—even on the go—so nothing gets missed." },
     { icon: "🔍", title: "Supports Strategy Optimization", text: "By comparing different strategies side by side, you can see which ones are consistently profitable and refine or drop others." }
   ];
 
   return (
-    <div className="min-h-screen bg-[#070a13] flex flex-col items-center p-6 md:p-12 relative overflow-x-hidden overflow-y-auto">
+    <div className="min-h-screen bg-[#070a13] flex flex-col items-center p-6 md:p-12 relative overflow-x-hidden overflow-y-auto no-scrollbar">
       {/* Decorative background elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none"></div>
 
-      <div className="w-full max-w-md relative z-10 flex flex-col items-center animate-in fade-in zoom-in duration-700 mt-auto">
+      <div className="w-full max-w-md relative z-10 flex flex-col items-center animate-in fade-in zoom-in duration-700 mt-8 mb-12">
         
         {/* Centered Branding */}
         <div className="flex flex-col items-center text-center mb-10">
@@ -240,21 +240,21 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
       </div>
 
       {/* Benefits Section Below Registration */}
-      <div className="w-full max-w-4xl relative z-10 mt-16 mb-20 animate-in slide-in-from-bottom duration-1000">
+      <div className="w-full max-w-4xl relative z-10 mt-8 mb-20 animate-in slide-in-from-bottom duration-1000">
         <div className="text-center mb-10">
           <h3 className="text-lg font-black text-white uppercase tracking-[0.2em]">The Power of Journaling</h3>
           <div className="w-12 h-1 bg-emerald-500 mx-auto mt-2 rounded-full"></div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
           {benefits.map((benefit, index) => (
-            <div key={index} className="bg-[#0e1421]/50 border border-[#1e293b] p-5 rounded-2xl hover:border-emerald-500/30 transition-all flex gap-4 group">
-              <div className="text-2xl group-hover:scale-110 transition-transform shrink-0">{benefit.icon}</div>
+            <div key={index} className="bg-[#0e1421]/50 border border-[#1e293b] p-4 rounded-2xl hover:border-emerald-500/30 transition-all flex gap-4 group">
+              <div className="text-xl group-hover:scale-110 transition-transform shrink-0">{benefit.icon}</div>
               <div>
-                <h4 className="font-black text-white text-[11px] uppercase tracking-wider mb-1">
+                <h4 className="font-black text-white text-[10px] uppercase tracking-wider mb-1">
                   {index + 1}. {benefit.title}
                 </h4>
-                <p className="text-slate-500 text-[10px] leading-relaxed font-medium">
+                <p className="text-slate-500 text-[9px] leading-relaxed font-medium">
                   {benefit.text}
                 </p>
               </div>
@@ -272,23 +272,120 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
       {/* Terms Modal */}
       {showTermsModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
-          <div className="w-full max-w-2xl bg-[#0e1421] border border-[#1e293b] rounded-[2.5rem] flex flex-col max-h-[90vh] shadow-2xl overflow-hidden">
+          <div className="w-full max-w-3xl bg-[#0e1421] border border-[#1e293b] rounded-[2.5rem] flex flex-col max-h-[85vh] shadow-2xl overflow-hidden">
             <div className="p-8 border-b border-[#1e293b] flex justify-between items-center bg-[#0a0f1d]">
               <div>
-                <h3 className="text-xl font-black text-white">Agreement Terms</h3>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Version 2.4</p>
+                <h3 className="text-xl font-black text-white">Terms and Conditions</h3>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Version 3.1 • March 2024</p>
               </div>
               <button onClick={() => setShowTermsModal(false)} className="text-slate-500 hover:text-white transition-colors">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-6 text-slate-400 text-xs leading-relaxed">
-              <p>TradeMind is a performance tracking utility. We do not provide financial advisory services. Trading financial instruments carries high risk. Users are solely responsible for their financial decisions. Data is handled according to our local storage policies.</p>
-              <h5 className="font-black text-white uppercase">Privacy</h5>
-              <p>We prioritize your trade data security. Aggregated anonymous patterns may be used to enhance AI feedback loops.</p>
+            
+            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8 bg-[#070a13]/30">
+              <div className="space-y-4">
+                <h4 className="text-sm font-black text-white uppercase tracking-wider">Terms and Conditions – Trading Journal App</h4>
+                
+                <div className="space-y-6">
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">1. Acceptance of Terms</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">By accessing or using this Trading Journal App (“App”), you agree to be bound by these Terms & Conditions. If you do not agree, please do not use the App.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">2. Purpose of the App</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">The App is designed only for record-keeping, analysis, and self-evaluation of trading activities. It does not provide investment advice, trading signals, or financial recommendations.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">3. No Investment Advice Disclaimer</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">All data, analytics, charts, and insights are for educational and informational purposes only. The App is not registered as an investment advisor, broker, or analyst. Users are solely responsible for their trading and investment decisions.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">4. User Eligibility</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">You must be 18 years or older to use the App. By using the App, you confirm that you are legally allowed to trade in your country.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">5. User Accounts</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">Users must provide accurate and complete information while creating an account. You are responsible for maintaining the confidentiality of your login credentials. The Admin reserves the right to suspend or terminate accounts for misuse or violation of terms.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">6. Data Entry & Accuracy</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">Trade entries, notes, screenshots, files, and videos are entered by the user. The App does not verify the accuracy of any trade data. Incorrect or incomplete data may lead to inaccurate analysis.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">7. Risk Disclosure</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">Trading in stocks, options, and derivatives involves substantial risk. Past performance recorded in the App does not guarantee future results. You acknowledge that you may incur losses while trading.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">8. File Uploads</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">Users may upload images, documents, or videos related to trades. Uploaded content must not contain malware, illegal material, or copyrighted content without permission. The App is not responsible for data loss but takes reasonable steps to protect user data.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">9. Admin Rights</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">The Admin has full control over User access, App features, and Content. Admin can modify or remove any content that violates policies.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">10. Subscription & Payments</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">Paid features or courses are non-refundable unless stated otherwise. Prices may change at the Admin’s discretion.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">11. Data Privacy</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">User data is stored securely and used only to provide App functionality. The App does not sell user trading data to third parties.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">12. Limitation of Liability</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">The App, its owners, and developers shall not be liable for trading losses, financial damages, or technical errors.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">13. App Availability</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">Continuous availability is not guaranteed; the App may be updated or modified at any time.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">14. Termination</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">Admin reserves the right to restrict access without prior notice if terms are violated.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">15. Changes to Terms</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">Terms may be updated at any time. Continued use means acceptance of the revised terms.</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">16. Governing Law</h5>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">These Terms shall be governed by the laws of India.</p>
+                  </section>
+
+                  <section className="space-y-4 pt-6 border-t border-[#1e293b]">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">17. Contact Information</h5>
+                    <div className="bg-[#0a0f1d] p-4 rounded-xl border border-[#1e293b] space-y-1">
+                      <p className="text-white text-[11px] font-black">Support: 8600299477</p>
+                      <p className="text-emerald-400 text-[11px] font-black">Email: TradeMindaijournal@gmail.com</p>
+                    </div>
+                  </section>
+                </div>
+              </div>
             </div>
+            
             <div className="p-8 border-t border-[#1e293b] bg-[#0a0f1d]">
-              <button onClick={() => { setTermsAccepted(true); setShowTermsModal(false); }} className="w-full bg-emerald-500 text-slate-900 font-black py-4 rounded-2xl text-xs uppercase tracking-widest">Accept & Close</button>
+              <button 
+                onClick={() => { setTermsAccepted(true); setShowTermsModal(false); }} 
+                className="w-full bg-emerald-500 text-slate-900 font-black py-4 rounded-2xl text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-400"
+              >
+                Acknowledge & Accept Terms
+              </button>
             </div>
           </div>
         </div>
