@@ -154,10 +154,41 @@ export const getStoredTrades = (userId?: string): Trade[] => {
   }
 };
 
+// --- System Management ---
+export const exportMasterDB = () => {
+  const users = getRegisteredUsers();
+  const trades = getStoredTrades();
+  const masterData = {
+    version: '1.0',
+    exportedAt: new Date().toISOString(),
+    users,
+    trades
+  };
+  const blob = new Blob([JSON.stringify(masterData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `trademind-master-sync-${new Date().toISOString().split('T')[0]}.json`;
+  link.click();
+};
+
+export const importMasterDB = async (jsonString: string): Promise<boolean> => {
+  try {
+    const data = JSON.parse(jsonString);
+    if (data.users && data.trades) {
+      saveUsers(data.users);
+      saveTrades(data.trades);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+};
+
 // --- Calculations ---
 export const calculateGrossPnL = (trade: Trade): number => {
   if (trade.status === 'OPEN' || trade.exitPrice === undefined) return 0;
-  // Multiplier removed to treat quantity as total units/quantity
   const entryTotal = trade.entryPrice * trade.quantity;
   const exitTotal = trade.exitPrice * trade.quantity;
   return trade.side === 'LONG' ? (exitTotal - entryTotal) : (entryTotal - exitTotal);
@@ -171,13 +202,18 @@ export const exportTradesToCSV = (trades: Trade[]) => {
   if (trades.length === 0) return;
   const headers = ["ID", "Symbol", "Type", "Side", "Status", "Entry Date", "Exit Date", "Entry Price", "Exit Price", "Quantity", "Fees", "Gross P&L", "Net P&L", "Strategies", "Emotions", "Mistakes", "AI Score"];
   const rows = trades.map(t => [
-    t.id, t.symbol, t.type, t.side, t.status, t.entryDate, t.exitDate || "N/A", t.entryPrice, t.exitPrice || 0, t.quantity, t.fees, calculateGrossPnL(t).toFixed(2), calculatePnL(t).toFixed(2), `"${t.strategies.join(', ')}"`, `"${t.emotions.join(', ')}"`, `"${t.mistakes.join(', ')}"`, t.aiReview?.score || "N/A"
+    t.id, t.symbol, t.type, t.side, t.status, t.entryDate, t.exitDate || '', t.entryPrice, t.exitPrice || '', t.quantity, t.fees, calculateGrossPnL(t), calculatePnL(t), 
+    `"${t.strategies.join('; ')}"`, 
+    `"${t.emotions.join('; ')}"`, 
+    `"${t.mistakes.join('; ')}"`, 
+    t.aiReview?.score || 'N/A'
   ]);
-  const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
+  const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const encodedUri = encodeURI(csvContent);
   const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", `trade-export.csv`);
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `trademind_export_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
 };

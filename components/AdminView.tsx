@@ -1,11 +1,11 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { getRegisteredUsers, getStoredTrades, saveUsers, updateUserStatus, registerUser } from '../services/storageService';
+import { getRegisteredUsers, getStoredTrades, saveUsers, updateUserStatus, registerUser, exportMasterDB, importMasterDB } from '../services/storageService';
 import { User, UserRole, UserStatus, Trade, PlanType } from '../types';
 import TradeList from './TradeList';
 import TradeDetail from './TradeDetail';
 
-type AdminTab = 'overview' | 'verifications' | 'registry' | 'global_logs';
+type AdminTab = 'overview' | 'verifications' | 'registry' | 'global_logs' | 'sync';
 
 interface AdminViewProps {
   onLogout: () => void;
@@ -18,6 +18,7 @@ const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
   const [selectedProof, setSelectedProof] = useState<{ user: User, img: string } | null>(null);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [showManualRegister, setShowManualRegister] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
 
   // Manual Register State
   const [regName, setRegName] = useState('');
@@ -80,13 +81,38 @@ const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
     setRegPass('');
   };
 
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!window.confirm('WARNING: Importing a master file will OVERWRITE all current user and trade data on THIS device. Proceed?')) {
+      return;
+    }
+
+    setImportLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const result = event.target?.result as string;
+      const success = await importMasterDB(result);
+      if (success) {
+        alert('Master Sync Complete. Terminal state updated.');
+        window.location.reload();
+      } else {
+        alert('Sync Failed: Invalid Master File Format.');
+      }
+      setImportLoading(false);
+    };
+    reader.readAsText(file);
+  };
+
   const pendingUsers = users.filter(u => u.status === UserStatus.WAITING_APPROVAL);
 
   const subNavItems: { id: AdminTab; label: string; icon: React.ReactNode; count?: number }[] = [
-    { id: 'overview', label: 'Console Home', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg> },
-    { id: 'verifications', label: 'Verify Payments', count: pendingUsers.length, icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg> },
-    { id: 'registry', label: 'User Registry', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg> },
-    { id: 'global_logs', label: 'Global Audit', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg> },
+    { id: 'overview', label: 'Console', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg> },
+    { id: 'verifications', label: 'Verify', count: pendingUsers.length, icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg> },
+    { id: 'registry', label: 'Users', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg> },
+    { id: 'global_logs', label: 'Audit', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg> },
+    { id: 'sync', label: 'Sync', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg> },
   ];
 
   return (
@@ -295,6 +321,48 @@ const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">Inspecting all subject execution logs across the system</p>
               </div>
               <TradeList trades={allTrades} onSelect={setSelectedTrade} isAdmin={true} />
+           </div>
+        </div>
+      )}
+
+      {activeSubTab === 'sync' && (
+        <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-8">
+           <div className="bg-[#0e1421] border border-[#1e293b] rounded-3xl p-10 shadow-2xl space-y-8">
+              <div className="text-center space-y-3">
+                <div className="w-16 h-16 bg-blue-500/10 text-blue-400 rounded-2xl flex items-center justify-center mx-auto">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                </div>
+                <h3 className="text-2xl font-black text-white">Master Device Sync</h3>
+                <p className="text-slate-500 text-sm max-w-md mx-auto">Transfer the entire registration database and trade history between your mobile and desktop devices.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-[#0a0f1d] border border-[#1e293b] p-8 rounded-2xl space-y-4">
+                  <h4 className="text-xs font-black text-white uppercase tracking-widest">1. Export from current device</h4>
+                  <p className="text-slate-500 text-xs">Download a master sync file containing all users and trade records.</p>
+                  <button onClick={exportMasterDB} className="w-full bg-[#1e293b] hover:bg-[#2d3a4f] text-slate-200 font-black py-4 rounded-xl text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Download Master File
+                  </button>
+                </div>
+
+                <div className="bg-[#0a0f1d] border border-[#1e293b] p-8 rounded-2xl space-y-4">
+                  <h4 className="text-xs font-black text-white uppercase tracking-widest">2. Import to new device</h4>
+                  <p className="text-slate-500 text-xs">Select a previously exported file to overwrite current data with the master state.</p>
+                  <label className={`w-full bg-blue-500 hover:bg-blue-400 text-slate-900 font-black py-4 rounded-xl text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer ${importLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                    {importLoading ? 'Syncing...' : 'Upload & Sync Master'}
+                    <input type="file" accept=".json" onChange={handleFileImport} className="hidden" />
+                  </label>
+                </div>
+              </div>
+
+              <div className="bg-orange-500/5 border border-orange-500/20 p-6 rounded-2xl flex items-center gap-4">
+                 <svg className="w-8 h-8 text-orange-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                 <div className="text-[10px] font-bold text-orange-400 leading-relaxed uppercase">
+                    Sync Warning: Importing a file will completely replace the database on this device. Use "Download Master File" first if you have unsynced data.
+                 </div>
+              </div>
            </div>
         </div>
       )}
