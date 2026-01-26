@@ -21,7 +21,6 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   };
 
-  // Weekday Analysis
   const weekdayData = useMemo(() => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const results = days.map(day => ({ day, win: 0, loss: 0, pnl: 0, count: 0 }));
@@ -38,7 +37,6 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
     return results.filter(r => r.day !== 'Sunday' && r.day !== 'Saturday');
   }, [closedTrades]);
 
-  // Hourly Analysis
   const hourlyData = useMemo(() => {
     const hours = Array.from({ length: 24 }, (_, i) => ({ hour: i, pnl: 0, count: 0 }));
     closedTrades.forEach(t => {
@@ -49,7 +47,6 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
     return hours.filter(h => h.count > 0);
   }, [closedTrades]);
 
-  // Strategy Analysis
   const strategyData = useMemo(() => {
     const strategies: Record<string, { name: string; pnl: number; win: number; count: number }> = {};
     closedTrades.forEach(t => {
@@ -64,7 +61,6 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
     return Object.values(strategies).sort((a, b) => b.pnl - a.pnl);
   }, [closedTrades]);
 
-  // Symbol Analysis
   const symbolData = useMemo(() => {
     const symbols: Record<string, { name: string; pnl: number; count: number }> = {};
     closedTrades.forEach(t => {
@@ -75,7 +71,6 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
     return Object.values(symbols).sort((a, b) => b.pnl - a.pnl).slice(0, 10);
   }, [closedTrades]);
 
-  // Calendar Heatmap
   const calendarData = useMemo(() => {
     const map: Record<string, { pnl: number; count: number }> = {};
     closedTrades.forEach(t => {
@@ -89,82 +84,45 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
 
   return (
     <div className="space-y-8 pb-20">
-      {/* Calendar View Section */}
-      <section className="bg-slate-800 p-4 md:p-6 rounded-2xl border border-slate-700 shadow-xl">
+      <section className="bg-[#0e1421] p-6 rounded-2xl border border-[#1e293b] shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h3 className="text-xl font-bold text-slate-200">Advanced P&L Calendar</h3>
-            <p className="text-slate-500 text-sm">Track your daily and monthly performance cycles.</p>
+            <h3 className="text-xl font-black text-white">Performance Heatmap</h3>
+            <p className="text-slate-500 text-sm font-bold uppercase tracking-tight">Daily realization tracking</p>
           </div>
-          <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-lg border border-slate-700">
-            <button 
-              onClick={handlePrevMonth}
-              className="p-2 hover:bg-slate-800 text-slate-400 rounded-md transition-colors"
-            >
+          <div className="flex items-center gap-2 bg-[#0a0f1d] p-1 rounded-lg border border-[#1e293b]">
+            <button onClick={handlePrevMonth} className="p-2 hover:bg-[#111827] text-slate-400 rounded-md transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
             </button>
-            <span className="px-2 md:px-4 font-bold text-slate-200 text-xs md:text-base min-w-[100px] md:min-w-[140px] text-center">
-              {viewDate.toLocaleString('default', { month: 'short', year: 'numeric' })}
+            <span className="px-4 font-black text-white text-sm uppercase">
+              {viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
             </span>
-            <button 
-              onClick={handleNextMonth}
-              className="p-2 hover:bg-slate-800 text-slate-400 rounded-md transition-colors"
-            >
+            <button onClick={handleNextMonth} className="p-2 hover:bg-[#111827] text-slate-400 rounded-md transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
             </button>
           </div>
         </div>
-
         <PnLCalendar viewDate={viewDate} data={calendarData} />
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Weekday Performance */}
-        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-          <h3 className="text-lg font-bold mb-6 text-slate-200">Weekly Performance Breakdown</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="text-slate-500 uppercase tracking-wider border-b border-slate-700">
-                  <th className="pb-3">Day</th>
-                  <th className="pb-3">Trades</th>
-                  <th className="pb-3">Win/Loss</th>
-                  <th className="pb-3 text-right">Gross P&L</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700">
-                {weekdayData.map(d => (
-                  <tr key={d.day} className="group hover:bg-slate-700/30 transition-colors">
-                    <td className="py-4 font-semibold text-slate-300">{d.day}</td>
-                    <td className="py-4">{d.count}</td>
-                    <td className="py-4">
-                      <span className="text-green-400">{d.win}W</span> / <span className="text-red-400">{d.loss}L</span>
-                    </td>
-                    <td className={`py-4 text-right font-mono font-bold ${d.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      ₹{d.pnl.toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Hourly Analysis */}
-        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-          <h3 className="text-lg font-bold mb-6 text-slate-200">Best Time to Trade (P&L by Hour)</h3>
-          <div className="h-[300px]">
+        <div className="bg-[#0e1421] p-6 rounded-2xl border border-[#1e293b] shadow-xl">
+          <h3 className="text-lg font-black mb-6 text-white flex items-center gap-3">
+             <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+             Top Performing Symbols (INR)
+          </h3>
+          <div className="h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={hourlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                <XAxis dataKey="hour" stroke="#64748b" fontSize={12} tickFormatter={(h) => `${h}:00`} />
-                <YAxis stroke="#64748b" fontSize={12} tickFormatter={(val) => `₹${val}`} />
+              <BarChart data={symbolData} layout="vertical" margin={{ left: 20, right: 30 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} vertical={true} />
+                <XAxis type="number" stroke="#64748b" fontSize={10} axisLine={false} tickLine={false} />
+                <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={10} axisLine={false} tickLine={false} width={80} />
                 <Tooltip 
-                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f8fafc' }}
-                   formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'P&L']}
+                   contentStyle={{ backgroundColor: '#070a13', borderColor: '#1e293b', color: '#f8fafc' }}
+                   formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'Total P&L']}
                 />
-                <Bar dataKey="pnl">
-                  {hourlyData.map((entry, index) => (
+                <Bar dataKey="pnl" radius={[0, 4, 4, 0]} barSize={40}>
+                  {symbolData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? '#10b981' : '#ef4444'} />
                   ))}
                 </Bar>
@@ -173,43 +131,23 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
           </div>
         </div>
 
-        {/* Strategy Performance */}
-        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-          <h3 className="text-lg font-bold mb-6 text-slate-200">Strategy Performance Breakdown</h3>
+        <div className="bg-[#0e1421] p-6 rounded-2xl border border-[#1e293b] shadow-xl">
+          <h3 className="text-lg font-black mb-6 text-white">Strategy Breakdown</h3>
           <div className="space-y-4">
             {strategyData.map((s, idx) => (
-              <div key={s.name} className="flex items-center justify-between p-3 bg-slate-900/50 rounded-xl border border-slate-700">
-                <div>
-                  <div className="font-bold text-slate-200">{s.name}</div>
-                  <div className="text-xs text-slate-500">
-                    {s.count} Trades • {((s.win/s.count)*100).toFixed(1)}% Win Rate
-                  </div>
-                </div>
-                <div className={`font-mono font-bold ${s.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  ₹{s.pnl.toLocaleString()}
-                </div>
-              </div>
-            ))}
-            {strategyData.length === 0 && <p className="text-slate-500 text-center py-10">No strategy tags applied to closed trades.</p>}
-          </div>
-        </div>
-
-        {/* Top Symbols */}
-        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-          <h3 className="text-lg font-bold mb-6 text-slate-200">Top Performing Symbols</h3>
-          <div className="space-y-4">
-            {symbolData.map((s, idx) => (
-              <div key={s.name} className="flex items-center justify-between p-3 bg-slate-900/50 rounded-xl border border-slate-700">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-xs">
+              <div key={s.name} className="flex items-center justify-between p-4 bg-[#0a0f1d] rounded-2xl border border-[#1e293b] transition-colors hover:border-emerald-500/30">
+                <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-black text-xs border border-emerald-500/20">
                     {idx + 1}
                   </div>
                   <div>
-                    <div className="font-bold text-slate-200">{s.name}</div>
-                    <div className="text-xs text-slate-500">{s.count} Total Executions</div>
+                    <div className="font-black text-white">{s.name}</div>
+                    <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-0.5">
+                      {s.count} Executions • {((s.win/s.count)*100).toFixed(0)}% Win Rate
+                    </div>
                   </div>
                 </div>
-                <div className={`font-mono font-bold ${s.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <div className={`font-mono font-black text-lg ${s.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   ₹{s.pnl.toLocaleString()}
                 </div>
               </div>
@@ -221,7 +159,6 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
   );
 };
 
-// Sub-component: PnL Calendar
 const PnLCalendar = ({ viewDate, data }: { viewDate: Date; data: Record<string, { pnl: number; count: number }> }) => {
   const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
@@ -230,98 +167,39 @@ const PnLCalendar = ({ viewDate, data }: { viewDate: Date; data: Record<string, 
     return Array.from({ length: 42 }, (_, i) => {
       const day = i - firstDayOfMonth + 1;
       if (day <= 0 || day > daysInMonth) return null;
-      
       const dateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const stats = data[dateStr];
-      
       return { day, stats, dateStr };
     });
   }, [viewDate, data, firstDayOfMonth, daysInMonth]);
 
-  // Monthly stats
-  const monthStats = useMemo(() => {
-    let totalPnl = 0;
-    let tradingDays = 0;
-    let profitDays = 0;
-    let lossDays = 0;
-
-    monthDays.forEach(d => {
-      if (d && d.stats) {
-        tradingDays++;
-        totalPnl += d.stats.pnl;
-        if (d.stats.pnl > 0) profitDays++;
-        else if (d.stats.pnl < 0) lossDays++;
-      }
-    });
-
-    return { totalPnl, tradingDays, profitDays, lossDays };
-  }, [monthDays]);
-
   return (
-    <div className="w-full space-y-6">
-      {/* Monthly Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
-        <div className="bg-slate-900/50 p-2 md:p-4 rounded-xl border border-slate-700">
-          <span className="text-[8px] md:text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gross P&L</span>
-          <div className={`text-sm md:text-xl font-black mt-1 ${monthStats.totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            ₹{monthStats.totalPnl.toLocaleString()}
-          </div>
-        </div>
-        <div className="bg-slate-900/50 p-2 md:p-4 rounded-xl border border-slate-700">
-          <span className="text-[8px] md:text-[10px] font-bold text-slate-500 uppercase tracking-widest">Active Days</span>
-          <div className="text-sm md:text-xl font-black mt-1 text-slate-200">
-            {monthStats.tradingDays}
-          </div>
-        </div>
-        <div className="bg-slate-900/50 p-2 md:p-4 rounded-xl border border-slate-700">
-          <span className="text-[8px] md:text-[10px] font-bold text-slate-500 uppercase tracking-widest">Profitable</span>
-          <div className="text-sm md:text-xl font-black mt-1 text-green-400">
-            {monthStats.profitDays}
-          </div>
-        </div>
-        <div className="bg-slate-900/50 p-2 md:p-4 rounded-xl border border-slate-700">
-          <span className="text-[8px] md:text-[10px] font-bold text-slate-500 uppercase tracking-widest">Losing</span>
-          <div className="text-sm md:text-xl font-black mt-1 text-red-400">
-            {monthStats.lossDays}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-7 gap-0.5 md:gap-2">
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-          <div key={i} className="text-center text-[8px] md:text-[10px] font-bold text-slate-600 uppercase tracking-widest pb-1">{d}</div>
-        ))}
-        {monthDays.map((d, i) => (
-          <div 
-            key={i} 
-            className={`min-h-[50px] md:min-h-[90px] p-1 md:p-2 rounded-lg md:rounded-xl border transition-all ${
-              d ? 'bg-slate-900/30 border-slate-700/50 hover:border-slate-500' : 'border-transparent opacity-0 pointer-events-none'
-            } ${d?.stats && (d.stats.pnl > 0 ? 'bg-green-500/5 border-green-500/20' : d.stats.pnl < 0 ? 'bg-red-500/5 border-red-500/20' : '')}`}
-          >
-            {d && (
-              <div className="flex flex-col h-full overflow-hidden">
-                <div className="text-[8px] md:text-[10px] font-bold text-slate-500 mb-0.5">{d.day}</div>
-                {d.stats && (
-                  <div className="flex flex-col h-full justify-between">
-                    <div className={`text-[7px] sm:text-[9px] md:text-sm font-black truncate leading-none ${d.stats.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {d.stats.pnl >= 0 ? '+' : ''}₹{Math.abs(d.stats.pnl).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </div>
-                    <div className="text-[6px] sm:text-[8px] md:text-[10px] text-slate-500 font-medium truncate mt-0.5">
-                      {d.stats.count} <span className="hidden sm:inline">Trades</span><span className="inline sm:hidden">T</span>
-                    </div>
-                    <div className={`mt-auto h-0.5 md:h-1 rounded-full w-full overflow-hidden ${d.stats.pnl >= 0 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
-                       <div 
-                        className={`h-full rounded-full ${d.stats.pnl >= 0 ? 'bg-green-500' : 'bg-red-500'}`} 
-                        style={{ width: '100%' }}
-                      />
-                    </div>
+    <div className="grid grid-cols-7 gap-1 md:gap-3">
+      {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((d, i) => (
+        <div key={i} className="text-center text-[10px] font-black text-slate-600 uppercase tracking-widest pb-4">{d}</div>
+      ))}
+      {monthDays.map((d, i) => (
+        <div 
+          key={i} 
+          className={`min-h-[50px] md:min-h-[90px] p-2 rounded-2xl border transition-all ${
+            d ? 'bg-[#0a0f1d] border-[#1e293b] hover:border-[#334155]' : 'border-transparent opacity-0'
+          } ${d?.stats && (d.stats.pnl > 0 ? 'bg-emerald-500/5 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]' : d.stats.pnl < 0 ? 'bg-red-500/5 border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.05)]' : '')}`}
+        >
+          {d && (
+            <div className="flex flex-col h-full">
+              <div className="text-[10px] font-black text-slate-500 mb-1">{d.day}</div>
+              {d.stats && (
+                <div className="flex flex-col h-full justify-center text-center">
+                  <div className={`text-[10px] md:text-sm font-black ${d.stats.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {d.stats.pnl >= 0 ? '+' : ''}₹{Math.abs(d.stats.pnl).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+                  <div className="text-[8px] text-slate-600 font-bold uppercase mt-1">{d.stats.count} T</div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 };

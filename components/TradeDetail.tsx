@@ -10,14 +10,16 @@ interface TradeDetailProps {
   onEdit: (trade: Trade) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
+  isAdmin?: boolean;
 }
 
-const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDelete, onClose }) => {
+const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDelete, onClose, isAdmin = false }) => {
   const [exitPrice, setExitPrice] = useState(trade.exitPrice?.toString() || '');
   const [isReviewing, setIsReviewing] = useState(false);
   const pnl = calculatePnL(trade);
 
   const handleCloseTrade = () => {
+    if (!isAdmin) return;
     const updatedTrade: Trade = {
       ...trade,
       status: TradeStatus.CLOSED,
@@ -28,6 +30,7 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
   };
 
   const handleAIReview = async () => {
+    if (!isAdmin) return;
     setIsReviewing(true);
     const review = await getAIReviewForTrade(trade);
     if (review) {
@@ -36,68 +39,84 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
     setIsReviewing(false);
   };
 
+  const confirmAndDelete = () => {
+    if (!isAdmin) return;
+    if (window.confirm('Are you sure you want to permanently delete this trade? This action cannot be undone.')) {
+      onDelete(trade.id);
+    }
+  };
+
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden animate-in slide-in-from-right duration-300 max-h-[90vh] overflow-y-auto">
-      <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 sticky top-0 z-10 backdrop-blur-md">
+    <div className="bg-[#0e1421] rounded-2xl border border-[#1e293b] overflow-hidden animate-in slide-in-from-right duration-300 max-h-[90vh] flex flex-col shadow-2xl">
+      {/* Header */}
+      <div className="p-6 border-b border-[#1e293b] flex justify-between items-center bg-[#0a0f1d]/80 sticky top-0 z-10 backdrop-blur-md">
         <div className="flex items-center gap-4">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl ${trade.side === TradeSide.LONG ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+            {trade.symbol.substring(0, 1)}
+          </div>
           <div>
-            <h2 className="text-2xl font-bold flex items-center gap-2">
+            <h2 className="text-2xl font-black text-white flex items-center gap-2">
               {trade.symbol} 
-              <span className={`text-xs px-2 py-0.5 rounded ${trade.side === TradeSide.LONG ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+              <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded tracking-widest ${trade.side === TradeSide.LONG ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
                 {trade.side}
               </span>
             </h2>
-            <p className="text-slate-500 text-sm">{new Date(trade.entryDate).toLocaleString()}</p>
+            <p className="text-slate-500 text-xs font-bold uppercase tracking-tighter">{new Date(trade.entryDate).toLocaleString()}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => onEdit(trade)}
-            className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors"
-            title="Edit Trade"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-          </button>
-          <button 
-            onClick={() => onDelete(trade.id)}
-            className="p-2 hover:bg-red-500/20 rounded-lg text-red-400 transition-colors"
-            title="Delete Trade"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-          </button>
-          <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 ml-2">
+        <div className="flex items-center gap-1">
+          {isAdmin && (
+            <>
+              <button 
+                onClick={() => onEdit(trade)}
+                className="p-2 hover:bg-[#1e293b] rounded-lg text-slate-400 transition-colors"
+                title="Edit Trade"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+              </button>
+              <button 
+                onClick={confirmAndDelete}
+                className="p-2 hover:bg-red-500/10 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
+                title="Delete Trade"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              </button>
+            </>
+          )}
+          <button onClick={onClose} className="p-2 hover:bg-[#1e293b] rounded-lg text-slate-400 ml-1 transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
         </div>
       </div>
 
-      <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Content Area */}
+      <div className="p-6 overflow-y-auto flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-900 p-4 rounded-lg">
-              <span className="block text-slate-500 text-xs mb-1">Entry Price</span>
-              <span className="text-lg font-mono font-bold">₹{trade.entryPrice.toFixed(2)}</span>
+            <div className="bg-[#0a0f1d] p-4 rounded-2xl border border-[#1e293b]">
+              <span className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Entry Price</span>
+              <span className="text-lg font-mono font-black text-slate-200">₹{trade.entryPrice.toLocaleString()}</span>
             </div>
-            <div className="bg-slate-900 p-4 rounded-lg">
-              <span className="block text-slate-500 text-xs mb-1">Quantity</span>
-              <span className="text-lg font-mono font-bold">{trade.quantity}</span>
+            <div className="bg-[#0a0f1d] p-4 rounded-2xl border border-[#1e293b]">
+              <span className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Quantity</span>
+              <span className="text-lg font-mono font-black text-slate-200">{trade.quantity}</span>
             </div>
             {trade.status === TradeStatus.CLOSED && (
-              <div className="bg-slate-900 p-4 rounded-lg">
-                <span className="block text-slate-500 text-xs mb-1">Exit Price</span>
-                <span className="text-lg font-mono font-bold">₹{trade.exitPrice?.toFixed(2)}</span>
+              <div className="bg-[#0a0f1d] p-4 rounded-2xl border border-[#1e293b]">
+                <span className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Exit Price</span>
+                <span className="text-lg font-mono font-black text-slate-200">₹{trade.exitPrice?.toLocaleString()}</span>
               </div>
             )}
-            <div className="bg-slate-900 p-4 rounded-lg col-span-1">
-              <span className="block text-slate-500 text-xs mb-1">Brokerage</span>
-              <span className="text-lg font-mono font-bold text-red-400">₹{trade.fees.toFixed(2)}</span>
+            <div className="bg-[#0a0f1d] p-4 rounded-2xl border border-[#1e293b]">
+              <span className="block text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Brokerage</span>
+              <span className="text-lg font-mono font-black text-red-400">₹{trade.fees.toLocaleString()}</span>
             </div>
           </div>
 
-          <div className={`p-6 rounded-lg border flex flex-col items-center justify-center ${pnl >= 0 ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
-            <span className="text-slate-400 text-sm mb-1 uppercase tracking-wider">Total P&L</span>
-            <span className={`text-4xl font-bold font-mono ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {pnl >= 0 ? '+' : ''}₹{pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <div className={`p-8 rounded-2xl border flex flex-col items-center justify-center transition-all ${pnl >= 0 ? 'bg-emerald-500/5 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.05)]' : 'bg-red-500/5 border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.05)]'}`}>
+            <span className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Total Net P&L</span>
+            <span className={`text-4xl font-black font-mono tracking-tighter ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {pnl >= 0 ? '+' : '-'}₹{Math.abs(pnl).toLocaleString()}
             </span>
           </div>
 
@@ -105,10 +124,10 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
           <div className="space-y-4">
             {trade.strategies.length > 0 && (
               <div>
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Strategy Applied</h3>
+                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Strategy Cluster</h3>
                 <div className="flex flex-wrap gap-2">
                   {trade.strategies.map(s => (
-                    <span key={s} className="bg-green-500/10 text-green-400 text-[10px] font-bold px-2 py-1 rounded border border-green-500/20">{s}</span>
+                    <span key={s} className="bg-emerald-500/10 text-emerald-400 text-[10px] font-black px-2 py-1 rounded-lg border border-emerald-500/20 uppercase">{s}</span>
                   ))}
                 </div>
               </div>
@@ -117,20 +136,20 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
             <div className="grid grid-cols-2 gap-4">
               {trade.emotions.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Emotions</h3>
+                  <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Mindset</h3>
                   <div className="flex flex-wrap gap-2">
                     {trade.emotions.map(e => (
-                      <span key={e} className="bg-blue-500/10 text-blue-400 text-[10px] font-bold px-2 py-1 rounded border border-blue-500/20">{e}</span>
+                      <span key={e} className="bg-blue-500/10 text-blue-400 text-[10px] font-black px-2 py-1 rounded-lg border border-blue-500/20 uppercase">{e}</span>
                     ))}
                   </div>
                 </div>
               )}
               {trade.mistakes.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Mistakes</h3>
+                  <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Psychological Leaks</h3>
                   <div className="flex flex-wrap gap-2">
                     {trade.mistakes.map(m => (
-                      <span key={m} className="bg-red-500/10 text-red-400 text-[10px] font-bold px-2 py-1 rounded border border-red-500/20">{m}</span>
+                      <span key={m} className="bg-red-500/10 text-red-400 text-[10px] font-black px-2 py-1 rounded-lg border border-red-500/20 uppercase">{m}</span>
                     ))}
                   </div>
                 </div>
@@ -138,9 +157,12 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
             </div>
           </div>
 
-          {trade.status === TradeStatus.OPEN && (
-            <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 space-y-4">
-              <h3 className="font-semibold text-slate-300">Close this trade</h3>
+          {trade.status === TradeStatus.OPEN && isAdmin && (
+            <div className="bg-[#0a0f1d] p-6 rounded-2xl border border-emerald-500/20 space-y-4 shadow-xl">
+              <h3 className="font-black text-white flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                Realize Trade
+              </h3>
               <div className="flex gap-2">
                 <input 
                   type="number"
@@ -148,11 +170,11 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
                   placeholder="Exit Price (₹)"
                   value={exitPrice}
                   onChange={(e) => setExitPrice(e.target.value)}
-                  className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="flex-1 bg-[#111827] border border-[#1e293b] rounded-xl p-3 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono"
                 />
                 <button 
                   onClick={handleCloseTrade}
-                  className="bg-slate-200 hover:bg-white text-slate-900 font-bold px-4 py-2 rounded-lg transition-colors"
+                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black px-6 py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/10"
                 >
                   Close
                 </button>
@@ -161,98 +183,147 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
           )}
 
           <div>
-            <h3 className="text-slate-400 font-semibold mb-2 flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-              Notes
+            <h3 className="text-slate-400 font-black text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+              Execution Hypothesis
             </h3>
-            <p className="bg-slate-900 p-4 rounded-lg text-slate-300 whitespace-pre-wrap italic">
+            <p className="bg-[#0a0f1d] p-5 rounded-2xl text-slate-300 whitespace-pre-wrap italic border border-[#1e293b] leading-relaxed">
               "{trade.notes || 'No notes provided for this trade.'}"
             </p>
           </div>
 
           {trade.screenshot && (
             <div className="space-y-2">
-              <h3 className="text-slate-400 font-semibold flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                Screenshot
+              <h3 className="text-slate-400 font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2-2v12a2 2 0 002 2z"></path></svg>
+                Tape Capture
               </h3>
-              <div className="border border-slate-700 rounded-lg overflow-hidden">
-                <img src={trade.screenshot} alt="Trade Screenshot" className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(trade.screenshot)} />
+              <div className="border border-[#1e293b] rounded-2xl overflow-hidden shadow-2xl">
+                <img src={trade.screenshot} alt="Trade Screenshot" className="w-full h-auto" />
               </div>
             </div>
           )}
         </div>
 
+        {/* AI Section - Restricted to Admin (Modification / Chat rights) */}
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <span className="text-blue-400">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.536 14.95a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM14.95 6.464a1 1 0 010-1.414l.707-.707a1 1 0 011.414 1.414l-.707.707a1 1 0 01-1.414 0zM6.464 14.95a1 1 0 010 1.414l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 0z"></path></svg>
-              </span>
-              AI Coaching Review
-            </h3>
-            {!trade.aiReview && (
-              <button 
-                onClick={handleAIReview}
-                disabled={isReviewing}
-                className="text-xs bg-blue-600 hover:bg-blue-500 text-white font-bold py-1.5 px-3 rounded-full flex items-center gap-2 transition-all disabled:opacity-50"
-              >
-                {isReviewing ? (
-                  <>
-                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Analyzing...
-                  </>
-                ) : 'Get AI Review'}
-              </button>
-            )}
-          </div>
-
-          {trade.aiReview ? (
-            <div className="bg-slate-900 rounded-xl border border-slate-700/50 p-6 space-y-6">
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 rounded-full border-4 border-blue-500/30 flex items-center justify-center text-2xl font-black text-blue-400">
-                  {trade.aiReview.score}
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-200">Quality Score</h4>
-                  <p className="text-slate-500 text-sm">Review generated on {new Date(trade.aiReview.timestamp).toLocaleDateString()}</p>
-                </div>
+          {isAdmin ? (
+            <>
+              <div className="flex justify-between items-center bg-[#0a0f1d] p-4 rounded-2xl border border-[#1e293b]">
+                <h3 className="text-xl font-black flex items-center gap-2 text-white">
+                  <span className="text-emerald-500">
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.536 14.95a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM14.95 6.464a1 1 0 010-1.414l.707-.707a1 1 0 011.414 1.414l-.707.707a1 1 0 01-1.414 0zM6.464 14.95a1 1 0 010 1.414l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 0z"></path></svg>
+                  </span>
+                  Gemini AI Coach
+                </h3>
+                
+                <button 
+                  onClick={handleAIReview}
+                  disabled={isReviewing}
+                  className={`text-xs font-black py-2.5 px-5 rounded-xl flex items-center gap-2 transition-all disabled:opacity-50 shadow-lg ${
+                    trade.aiReview 
+                      ? 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30' 
+                      : 'bg-emerald-500 hover:bg-emerald-400 text-slate-900 shadow-emerald-500/10'
+                  }`}
+                >
+                  {isReviewing ? 'Analyzing...' : trade.aiReview ? 'Re-analyze' : 'Run AI Audit'}
+                </button>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                <div className="bg-slate-800/50 p-4 rounded-lg border-l-4 border-green-500">
-                  <span className="text-xs font-bold text-green-400 uppercase">Success Patterns</span>
-                  <p className="text-slate-300 mt-1">{trade.aiReview.well}</p>
-                </div>
-                <div className="bg-slate-800/50 p-4 rounded-lg border-l-4 border-red-500">
-                  <span className="text-xs font-bold text-red-400 uppercase">Risk Areas</span>
-                  <p className="text-slate-300 mt-1">{trade.aiReview.wrong}</p>
-                </div>
-                <div className="bg-blue-500/10 p-4 rounded-lg border border-blue-500/20">
-                  <span className="text-xs font-bold text-blue-400 uppercase">Action Item</span>
-                  <p className="text-slate-200 mt-1 font-medium">{trade.aiReview.improvement}</p>
-                </div>
-              </div>
+              {trade.aiReview ? (
+                <div className="space-y-4">
+                  {/* Score Indicator */}
+                  <div className="bg-[#0a0f1d] rounded-2xl border border-[#1e293b] p-6 flex items-center justify-between shadow-xl">
+                    <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-2xl font-black text-emerald-400 shadow-inner">
+                          {trade.aiReview.score}
+                        </div>
+                        <div>
+                          <h4 className="font-black text-slate-200">Execution Score</h4>
+                          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Logic-based review</p>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <span className="text-[10px] text-blue-500 font-black uppercase tracking-widest">Gemini 3 Flash</span>
+                    </div>
+                  </div>
 
-              {trade.aiReview.violations && (
-                <div className="flex items-center gap-3 text-red-400 bg-red-400/10 p-3 rounded-lg border border-red-400/20">
-                  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                  <span className="text-sm font-semibold">Rule Violations Detected</span>
+                  {/* Categorized AI Feedback */}
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="bg-emerald-500/5 rounded-2xl border border-emerald-500/20 overflow-hidden">
+                      <div className="bg-emerald-500/10 px-4 py-2 border-b border-emerald-500/10 flex items-center gap-2">
+                        <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Strengths</span>
+                      </div>
+                      <div className="p-4">
+                        <p className="text-slate-300 text-sm leading-relaxed italic">"{trade.aiReview.well}"</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-red-500/5 rounded-2xl border border-red-500/20 overflow-hidden">
+                      <div className="bg-red-500/10 px-4 py-2 border-b border-red-500/10 flex items-center gap-2">
+                        <span className="text-[9px] font-black text-red-400 uppercase tracking-widest">Leaks</span>
+                      </div>
+                      <div className="p-4">
+                        <p className="text-slate-300 text-sm leading-relaxed italic">"{trade.aiReview.wrong}"</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-blue-500/5 rounded-2xl border border-blue-500/20 overflow-hidden">
+                      <div className="bg-blue-500/10 px-4 py-2 border-b border-blue-500/10 flex items-center gap-2">
+                        <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Improvement</span>
+                      </div>
+                      <div className="p-4">
+                        <p className="text-white text-sm font-bold leading-relaxed">{trade.aiReview.improvement}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-80 bg-[#0a0f1d] rounded-2xl border border-dashed border-[#1e293b] text-slate-600 text-center p-8">
+                  <svg className="w-16 h-16 mb-4 opacity-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                  <h4 className="font-black text-slate-400 text-lg mb-2">Audit System Standby</h4>
+                  <p className="text-xs max-w-xs mb-6 text-slate-500">Enable AI Performance Reviews for deep tactical analysis.</p>
+                  <button 
+                    onClick={handleAIReview}
+                    disabled={isReviewing}
+                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black py-4 px-8 rounded-2xl shadow-lg transition-all"
+                  >
+                    {isReviewing ? 'Processing...' : 'Run Audit'}
+                  </button>
                 </div>
               )}
-            </div>
+            </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-64 bg-slate-900/30 rounded-xl border border-dashed border-slate-700 text-slate-500 text-center p-6">
-              <svg className="w-12 h-12 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
-              <p>Run a coach review to see deep insights and detect discipline patterns.</p>
-              {isReviewing && <p className="mt-4 text-blue-400 animate-pulse font-mono text-sm">Gemini is processing your trade tape...</p>}
+            <div className="h-full flex flex-col items-center justify-center bg-[#0a0f1d] rounded-2xl border border-[#1e293b] p-10 text-center space-y-4">
+               <div className="w-16 h-16 bg-blue-500/10 text-blue-400 rounded-2xl flex items-center justify-center">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+               </div>
+               <h3 className="text-white font-black">AI Insights Locked</h3>
+               <p className="text-slate-500 text-xs leading-relaxed">
+                 AI Coaching, Weekly Reports, and Performance Audits are exclusive to active Terminal licenses. Standard Preview users can only view basic execution metrics.
+               </p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Admin Footer Actions */}
+      {isAdmin && (
+        <div className="p-6 border-t border-[#1e293b] bg-[#0a0f1d] flex flex-col md:flex-row gap-4">
+          <button 
+            onClick={() => onEdit(trade)}
+            className="flex-1 flex items-center justify-center gap-2 bg-[#111827] hover:bg-[#1e293b] text-emerald-400 font-black py-4 rounded-2xl border border-emerald-500/30 transition-all shadow-lg"
+          >
+            Modify Entry
+          </button>
+          <button 
+            onClick={confirmAndDelete}
+            className="flex-1 flex items-center justify-center gap-2 bg-[#111827] hover:bg-red-500/10 text-red-500 font-black py-4 rounded-2xl border border-red-500/30 transition-all shadow-lg"
+          >
+            Purge Record
+          </button>
+        </div>
+      )}
     </div>
   );
 };

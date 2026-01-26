@@ -2,12 +2,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Trade, AIReview } from "../types";
 
-const API_KEY = process.env.API_KEY || '';
-
 export const getAIReviewForTrade = async (trade: Trade): Promise<AIReview | null> => {
-  if (!API_KEY) return null;
+  if (!process.env.API_KEY) return null;
   
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
     const response = await ai.models.generateContent({
@@ -34,7 +32,8 @@ export const getAIReviewForTrade = async (trade: Trade): Promise<AIReview | null
       }
     });
 
-    return JSON.parse(response.text.trim()) as AIReview;
+    const text = response.text || '';
+    return JSON.parse(text.trim()) as AIReview;
   } catch (error) {
     console.error("AI Review error:", error);
     return null;
@@ -42,9 +41,9 @@ export const getAIReviewForTrade = async (trade: Trade): Promise<AIReview | null
 };
 
 export const getWeeklyInsights = async (trades: Trade[]): Promise<string | null> => {
-  if (!API_KEY || trades.length === 0) return null;
+  if (!process.env.API_KEY || trades.length === 0) return null;
   
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
     const response = await ai.models.generateContent({
@@ -60,7 +59,7 @@ export const getWeeklyInsights = async (trades: Trade[]): Promise<string | null>
       }
     });
 
-    return response.text;
+    return response.text || null;
   } catch (error) {
     console.error("Weekly Insights error:", error);
     return null;
@@ -68,9 +67,9 @@ export const getWeeklyInsights = async (trades: Trade[]): Promise<string | null>
 };
 
 export const queryTradeHistory = async (query: string, trades: Trade[]): Promise<string | null> => {
-  if (!API_KEY) return null;
+  if (!process.env.API_KEY) return null;
   
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
     const response = await ai.models.generateContent({
@@ -85,7 +84,7 @@ export const queryTradeHistory = async (query: string, trades: Trade[]): Promise
       }
     });
 
-    return response.text;
+    return response.text || null;
   } catch (error) {
     console.error("Query error:", error);
     return null;

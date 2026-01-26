@@ -19,6 +19,30 @@ export enum TradeStatus {
   CLOSED = 'CLOSED'
 }
 
+export enum UserRole {
+  USER = 'USER',
+  ADMIN = 'ADMIN'
+}
+
+export enum UserStatus {
+  PENDING = 'PENDING', // Registered but no payment proof
+  WAITING_APPROVAL = 'WAITING_APPROVAL', // Payment proof submitted
+  APPROVED = 'APPROVED', // Full access
+  REJECTED = 'REJECTED' // Payment proof invalid
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  password?: string; // Simple local password for demo
+  isPaid: boolean;
+  role: UserRole;
+  status: UserStatus;
+  joinedAt: string;
+  paymentScreenshot?: string;
+}
+
 export interface OptionDetails {
   strike: number;
   expiration: string;
@@ -39,6 +63,7 @@ export interface AIReview {
 
 export interface Trade {
   id: string;
+  userId: string;
   symbol: string;
   type: TradeType;
   side: TradeSide;
@@ -57,12 +82,4 @@ export interface Trade {
   emotions: string[];
   mistakes: string[];
   strategies: string[];
-}
-
-export interface WeeklyInsight {
-  summary: string;
-  topMistake: string;
-  disciplineScore: number;
-  lessonOfTheWeek: string;
-  timestamp: number;
 }

@@ -53,10 +53,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
     const avgWin = winCount > 0 ? totalWinAmount / winCount : 0;
     const avgLoss = lossCount > 0 ? totalLossAmount / lossCount : 0;
 
-    // Corrected RRR Logic: Average Win / Average Loss
     const rrr = avgLoss !== 0 ? (avgWin / avgLoss) : (winCount > 0 ? 99 : 0);
-    
-    // Profit Factor: Total Wins / Total Losses
     const profitFactor = totalLossAmount !== 0 ? (totalWinAmount / totalLossAmount) : (totalWinAmount > 0 ? 99 : 0);
 
     const sortedByGross = [...closedTrades].sort((a, b) => calculateGrossPnL(b) - calculateGrossPnL(a));
@@ -67,7 +64,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
     const chartData = [...closedTrades]
       .sort((a, b) => new Date(a.exitDate!).getTime() - new Date(b.exitDate!).getTime())
       .map(t => {
-        runningTotal += calculatePnL(t); // Using Net PnL for equity curve
+        runningTotal += calculatePnL(t);
         return {
           date: new Date(t.exitDate!).toLocaleDateString(),
           pnl: runningTotal
@@ -101,7 +98,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [trades]);
 
-  const COLORS = ['#3b82f6', '#8b5cf6', '#06b6d4'];
+  const COLORS = ['#10b981', '#ef4444', '#3b82f6'];
 
   const filterButtons: { label: string; value: TimeFilter }[] = [
     { label: 'Weekly', value: 'WEEK' },
@@ -114,16 +111,27 @@ const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
 
   return (
     <div className="space-y-6">
-      {/* Date Filter Bar */}
-      <div className="flex flex-wrap gap-2 bg-slate-900/50 p-1.5 rounded-xl border border-slate-800 w-full md:w-fit">
+      {/* Legend-style Header from Attachment */}
+      <div className="flex items-center justify-center gap-8 py-2 mb-2">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+          <span className="text-sm font-semibold text-slate-300">Wins ({stats.winCount})</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-red-500"></div>
+          <span className="text-sm font-semibold text-slate-300">Losses ({stats.lossCount})</span>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 bg-[#0a0f1d] p-1.5 rounded-xl border border-[#1e293b] w-full md:w-fit mx-auto">
         {filterButtons.map(btn => (
           <button
             key={btn.value}
             onClick={() => setFilter(btn.value)}
             className={`flex-1 md:flex-none px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-sm font-semibold transition-all ${
               filter === btn.value 
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
-                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+                ? 'bg-emerald-500 text-slate-900 shadow-lg shadow-emerald-500/20' 
+                : 'text-slate-500 hover:text-slate-300 hover:bg-[#111827]'
             }`}
           >
             {btn.label}
@@ -131,86 +139,77 @@ const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <StatCard 
-          label="Net P&L (Realized)" 
+          label="Net P&L" 
           value={`₹${stats.totalNetPnL.toLocaleString()}`} 
-          subValue={`After ₹${stats.totalFees.toLocaleString()} Brokerage`}
+          subValue={`Fees: ₹${stats.totalFees.toLocaleString()}`}
           trend={stats.totalNetPnL >= 0 ? 'up' : 'down'}
-          color={stats.totalNetPnL >= 0 ? 'text-green-400' : 'text-red-400'}
+          color={stats.totalNetPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}
         />
         <StatCard 
           label="Win Rate" 
           value={`${stats.winRate.toFixed(1)}%`} 
-          subValue={`${stats.winCount} Wins / ${stats.lossCount} Losses`}
-          color="text-blue-400"
+          subValue="Realized Success"
+          color="text-emerald-400"
         />
         <StatCard 
-          label="Realized RRR" 
-          value={`${stats.rrr.toFixed(2)}:1`} 
-          subValue="Avg. Win / Avg. Loss"
-          color="text-purple-400"
+          label="Risk/Reward" 
+          value={`1:${stats.rrr.toFixed(2)}`} 
+          subValue="Avg Win / Avg Loss"
+          color="text-emerald-400"
         />
         <StatCard 
           label="Profit Factor" 
           value={stats.profitFactor.toFixed(2)} 
-          subValue="Total Gain / Total Loss"
-          color={stats.profitFactor >= 1 ? 'text-green-400' : 'text-red-400'}
+          subValue="Gross Win / Loss"
+          color={stats.profitFactor >= 1 ? 'text-emerald-400' : 'text-red-400'}
         />
         <StatCard 
-          label="Avg. Profit" 
+          label="Avg Win" 
           value={`₹${stats.avgWin.toFixed(0)}`} 
           subValue="Per Winning Trade"
-          color="text-green-400"
+          color="text-emerald-400"
         />
         <StatCard 
-          label="Avg. Loss" 
+          label="Avg Loss" 
           value={`₹${stats.avgLoss.toFixed(0)}`} 
           subValue="Per Losing Trade"
           color="text-red-400"
         />
-        <StatCard 
-          label="Largest WIN" 
-          value={stats.bestTrade ? `₹${calculateGrossPnL(stats.bestTrade).toLocaleString()}` : 'N/A'} 
-          subValue={stats.bestTrade ? stats.bestTrade.symbol : 'N/A'}
-          color="text-green-500"
-        />
-        <StatCard 
-          label="Brokerage" 
-          value={`₹${stats.totalFees.toLocaleString()}`} 
-          subValue="Total Paid Fees"
-          color="text-orange-400"
-        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-          <h3 className="text-lg font-bold mb-6 text-slate-200">Equity Curve (Net P&L)</h3>
+        <div className="lg:col-span-2 bg-[#0e1421] p-6 rounded-2xl border border-[#1e293b] shadow-xl">
+          <h3 className="text-lg font-bold mb-6 text-slate-200 flex items-center gap-2">
+             <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+             Equity Performance Curve
+          </h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={stats.chartData}>
                 <defs>
                   <linearGradient id="colorPnL" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                <XAxis dataKey="date" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `₹${val}`} />
+                <XAxis dataKey="date" stroke="#64748b" fontSize={10} axisLine={false} />
+                <YAxis stroke="#64748b" fontSize={10} axisLine={false} tickFormatter={(val) => `₹${val}`} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f8fafc' }}
-                  itemStyle={{ color: '#3b82f6' }}
+                  contentStyle={{ backgroundColor: '#070a13', borderColor: '#1e293b', color: '#f8fafc' }}
+                  itemStyle={{ color: '#10b981' }}
                   formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'Net P&L']}
                 />
-                <Area type="monotone" dataKey="pnl" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorPnL)" />
+                <Area type="monotone" dataKey="pnl" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorPnL)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl flex flex-col items-center">
-          <h3 className="text-lg font-bold mb-6 text-slate-200 w-full">Asset Allocation</h3>
+        <div className="bg-[#0e1421] p-6 rounded-2xl border border-[#1e293b] shadow-xl flex flex-col items-center">
+          <h3 className="text-lg font-bold mb-6 text-slate-200 w-full">Execution Distribution</h3>
           <div className="h-[240px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -220,15 +219,16 @@ const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
                   cy="50%"
                   innerRadius={60}
                   outerRadius={80}
-                  paddingAngle={5}
+                  paddingAngle={8}
                   dataKey="value"
+                  stroke="none"
                 >
                   {assetDistribution.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip 
-                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f8fafc' }}
+                   contentStyle={{ backgroundColor: '#070a13', borderColor: '#1e293b', color: '#f8fafc' }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -237,7 +237,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
             {assetDistribution.map((entry, index) => (
               <div key={entry.name} className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
-                <span className="text-xs text-slate-400 font-medium">{entry.name}</span>
+                <span className="text-xs text-slate-400 font-bold uppercase tracking-tighter">{entry.name}</span>
               </div>
             ))}
           </div>
@@ -248,19 +248,19 @@ const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
 };
 
 const StatCard = ({ label, value, subValue, trend, color }: any) => (
-  <div className="bg-slate-800 p-3 md:p-5 rounded-xl border border-slate-700 shadow-lg flex flex-col justify-between h-full">
+  <div className="bg-[#0e1421] p-5 rounded-2xl border border-[#1e293b] shadow-lg flex flex-col justify-between h-full transition-transform hover:scale-[1.02]">
     <div>
-      <span className="text-slate-500 text-[9px] md:text-xs font-semibold uppercase tracking-wider">{label}</span>
-      <div className="flex items-baseline gap-1 md:gap-2 mt-1 md:mt-2">
-        <span className={`text-sm md:text-2xl font-bold font-mono truncate ${color || 'text-slate-100'}`}>{value}</span>
+      <span className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{label}</span>
+      <div className="flex items-baseline gap-2 mt-2">
+        <span className={`text-2xl font-black font-mono truncate ${color || 'text-slate-100'}`}>{value}</span>
         {trend && (
-          <span className={trend === 'up' ? 'text-green-500 text-[10px]' : 'text-red-500 text-[10px]'}>
+          <span className={trend === 'up' ? 'text-emerald-500 text-sm' : 'text-red-500 text-sm'}>
             {trend === 'up' ? '▲' : '▼'}
           </span>
         )}
       </div>
     </div>
-    {subValue && <span className="text-slate-500 text-[8px] md:text-[10px] mt-1 md:mt-2 block font-medium border-t border-slate-700/50 pt-1 md:pt-2 truncate">{subValue}</span>}
+    {subValue && <span className="text-slate-600 text-[10px] mt-3 block font-bold uppercase tracking-tight border-t border-[#1e293b] pt-3">{subValue}</span>}
   </div>
 );
 

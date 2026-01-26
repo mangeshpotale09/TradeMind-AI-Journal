@@ -7,7 +7,7 @@
     <title>TradeMind AI Journal</title>
     
     <!-- PWA & Mobile Meta -->
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#070a13" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="TradeMind" />
@@ -19,30 +19,37 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+      html {
+        font-size: 17px;
+      }
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #0f172a;
+        background-color: #070a13; /* Deep space black/navy from attachment */
         color: #f8fafc;
-        overscroll-behavior-y: contain; /* Prevents pull-to-refresh on mobile */
+        overscroll-behavior-y: contain;
       }
       ::-webkit-scrollbar {
         width: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #1e293b;
+        background: #0a0f1d;
       }
       ::-webkit-scrollbar-thumb {
-        background: #334155;
+        background: #1e293b;
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #475569;
+        background: #334155;
       }
-      /* Prevent text selection and long-press menus in PWA mode */
       .no-select {
         -webkit-touch-callout: none;
         -webkit-user-select: none;
         user-select: none;
+      }
+      /* Custom background for cards to match attachment */
+      .card-dark {
+        background-color: #0e1421;
+        border: 1px solid #1e293b;
       }
     </style>
   <script type="importmap">
