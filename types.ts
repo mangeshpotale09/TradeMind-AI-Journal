@@ -31,16 +31,30 @@ export enum UserStatus {
   REJECTED = 'REJECTED' // Payment proof invalid
 }
 
+export enum PlanType {
+  MONTHLY = 'MONTHLY',
+  SIX_MONTHS = 'SIX_MONTHS',
+  ANNUAL = 'ANNUAL'
+}
+
 export interface User {
   id: string;
+  displayId: string; // Professional User ID for display (e.g., TM-12345)
   email: string;
   name: string;
+  mobile?: string;
   password?: string; // Simple local password for demo
   isPaid: boolean;
   role: UserRole;
   status: UserStatus;
   joinedAt: string;
   paymentScreenshot?: string;
+  amountPaid?: number;
+  expiryDate?: string;
+  selectedPlan?: PlanType;
+  referredBy?: string; // The referral code used during registration
+  ownReferralCode: string; // Unique code for this user to share
+  hasReferralDiscount?: boolean; // Flag to indicate 10% discount eligibility on renewal
 }
 
 export interface OptionDetails {

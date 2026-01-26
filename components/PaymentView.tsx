@@ -1,6 +1,6 @@
 
-import React, { useState, useRef } from 'react';
-import { User, UserStatus } from '../types';
+import React, { useState, useRef, useMemo } from 'react';
+import { User, UserStatus, PlanType } from '../types';
 import { submitPaymentProof } from '../services/storageService';
 
 interface PaymentViewProps {
@@ -12,6 +12,15 @@ const PaymentView: React.FC<PaymentViewProps> = ({ user, onPaymentSubmitted }) =
   const [loading, setLoading] = useState(false);
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const planDetails = useMemo(() => {
+    switch(user.selectedPlan) {
+      case PlanType.MONTHLY: return { price: 299, name: "MONTHLY" };
+      case PlanType.SIX_MONTHS: return { price: 599, name: "6 MONTHS" };
+      case PlanType.ANNUAL: return { price: 999, name: "ANNUAL" };
+      default: return { price: 999, name: "ANNUAL" };
+    }
+  }, [user.selectedPlan]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -43,15 +52,18 @@ const PaymentView: React.FC<PaymentViewProps> = ({ user, onPaymentSubmitted }) =
             <h2 className="text-3xl font-black mb-4">TradeMind Pro</h2>
             <p className="opacity-80 mb-8 text-sm leading-relaxed font-medium">Activate your terminal. Unlimited trade logging, AI-driven weekly deep-dives, and real-time behavioral coaching.</p>
             <div className="bg-white/10 p-6 rounded-2xl border border-white/20 flex flex-col items-center gap-4">
-              <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Scan to Pay (UPI/QR)</span>
+              <div className="text-center mb-2">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Subscription Tier</span>
+                 <div className="text-lg font-black">{planDetails.name} ACCESS</div>
+              </div>
               <img 
-                src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=trademind@bank&pn=TradeMindAI&am=1999&cu=INR" 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=trademind@bank&pn=TradeMindAI&am=${planDetails.price}&cu=INR`} 
                 alt="Payment QR Code" 
                 className="w-48 h-48 bg-white p-2 rounded-xl"
               />
               <div className="text-center">
-                <div className="text-2xl font-black">₹1,999</div>
-                <div className="text-[10px] font-bold opacity-60">LIFETIME LICENSE</div>
+                <div className="text-3xl font-black">₹{planDetails.price.toLocaleString()}</div>
+                <div className="text-[10px] font-bold opacity-60 uppercase tracking-widest">{planDetails.name} MEMBERSHIP</div>
               </div>
             </div>
           </div>

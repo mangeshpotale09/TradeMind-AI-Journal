@@ -1,9 +1,16 @@
 
-import { Trade, User, UserRole, UserStatus } from "../types";
+import { Trade, User, UserRole, UserStatus, PlanType } from "../types";
 
 const TRADES_KEY = 'trademind_trades';
 const USERS_KEY = 'trademind_users';
 const SESSION_KEY = 'trademind_session';
+
+// Helper to generate unique referral code
+const generateReferralCode = (name: string) => {
+  const prefix = name.substring(0, 3).toUpperCase();
+  const random = Math.floor(100 + Math.random() * 899);
+  return `${prefix}${random}`;
+};
 
 // --- User Management ---
 export const getRegisteredUsers = (): User[] => {
@@ -12,13 +19,19 @@ export const getRegisteredUsers = (): User[] => {
     // Initial Admin Account as requested
     const initialAdmin: User = {
       id: 'admin-1',
+      displayId: 'TM-ADMIN',
       email: 'potalemangesh09@gmail.com',
       name: 'Mangesh Potale',
+      mobile: '8600299477',
       password: 'Mangesh@123',
       isPaid: true,
       role: UserRole.ADMIN,
       status: UserStatus.APPROVED,
-      joinedAt: new Date().toISOString()
+      joinedAt: new Date().toISOString(),
+      amountPaid: 0,
+      expiryDate: 'Lifetime',
+      selectedPlan: PlanType.ANNUAL,
+      ownReferralCode: 'ADMIN100'
     };
     saveUsers([initialAdmin]);
     return [initialAdmin];
@@ -47,13 +60,21 @@ export const registerUser = (user: Partial<User>): User => {
   const users = getRegisteredUsers();
   const newUser: User = {
     id: crypto.randomUUID(),
+    displayId: `TM-${Math.floor(10000 + Math.random() * 89999)}`,
     email: user.email!,
     name: user.name!,
     password: user.password!,
+    mobile: user.mobile,
+    selectedPlan: user.selectedPlan || PlanType.MONTHLY,
     isPaid: false,
     role: UserRole.USER,
     status: UserStatus.PENDING,
-    joinedAt: new Date().toISOString()
+    joinedAt: new Date().toISOString(),
+    amountPaid: 0,
+    expiryDate: 'Pending',
+    referredBy: user.referredBy || undefined,
+    ownReferralCode: generateReferralCode(user.name!),
+    hasReferralDiscount: !!user.referredBy // Mark for discount if code was used
   };
   saveUsers([...users, newUser]);
   return newUser;
@@ -79,10 +100,36 @@ export const updateUserStatus = (userId: string, status: UserStatus) => {
   const users = getRegisteredUsers();
   const updated = users.map(u => {
     if (u.id === userId) {
+      const isApproved = status === UserStatus.APPROVED;
+      const expiry = new Date();
+      
+      let amount = 0;
+      if (isApproved) {
+        switch(u.selectedPlan) {
+          case PlanType.MONTHLY:
+            expiry.setMonth(expiry.getMonth() + 1);
+            amount = 299;
+            break;
+          case PlanType.SIX_MONTHS:
+            expiry.setMonth(expiry.getMonth() + 6);
+            amount = 599;
+            break;
+          case PlanType.ANNUAL:
+            expiry.setFullYear(expiry.getFullYear() + 1);
+            amount = 999;
+            break;
+          default:
+            expiry.setFullYear(expiry.getFullYear() + 1);
+            amount = 999;
+        }
+      }
+      
       return { 
         ...u, 
         status, 
-        isPaid: status === UserStatus.APPROVED 
+        isPaid: isApproved,
+        amountPaid: isApproved ? amount : u.amountPaid,
+        expiryDate: isApproved ? expiry.toISOString().split('T')[0] : u.expiryDate
       };
     }
     return u;
