@@ -79,6 +79,17 @@ export const registerUser = (user: Partial<User>): User => {
   return newUser;
 };
 
+export const resetUserPassword = (email: string, mobile: string, newPassword: string): boolean => {
+  const users = getRegisteredUsers();
+  const userIndex = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase() && u.mobile === mobile);
+  
+  if (userIndex === -1) return false;
+  
+  users[userIndex].password = newPassword;
+  saveUsers(users);
+  return true;
+};
+
 export const submitPaymentProof = (userId: string, screenshot: string) => {
   const users = getRegisteredUsers();
   const updated = users.map(u => u.id === userId ? { 
@@ -200,19 +211,56 @@ export const calculatePnL = (trade: Trade): number => {
 
 export const exportTradesToCSV = (trades: Trade[]) => {
   if (trades.length === 0) return;
-  const headers = ["ID", "Symbol", "Type", "Side", "Status", "Entry Date", "Exit Date", "Entry Price", "Exit Price", "Quantity", "Fees", "Gross P&L", "Net P&L", "Strategies", "Emotions", "Mistakes", "AI Score"];
-  const rows = trades.map(t => [
-    t.id, t.symbol, t.type, t.side, t.status, t.entryDate, t.exitDate || '', t.entryPrice, t.exitPrice || '', t.quantity, t.fees, calculateGrossPnL(t), calculatePnL(t), 
-    `"${t.strategies.join('; ')}"`, 
-    `"${t.emotions.join('; ')}"`, 
-    `"${t.mistakes.join('; ')}"`, 
-    t.aiReview?.score || 'N/A'
+  const users = getRegisteredUsers();
+  const headers = ["Trade ID", "Owner Name", "Symbol", "Type", "Side", "Status", "Entry Date", "Exit Date", "Entry Price", "Exit Price", "Quantity", "Fees", "Gross P&L", "Net P&L", "Strategies", "Emotions", "Mistakes", "AI Score"];
+  
+  const rows = trades.map(t => {
+    const owner = users.find(u => u.id === t.userId);
+    const ownerName = owner ? owner.name : 'Unknown';
+    
+    return [
+      t.id, 
+      ownerName,
+      t.symbol, 
+      t.type, 
+      t.side, 
+      t.status, 
+      t.entryDate, 
+      t.exitDate || '', 
+      t.entryPrice, 
+      t.exitPrice || '', 
+      t.quantity, 
+      t.fees, 
+      calculateGrossPnL(t), 
+      calculatePnL(t), 
+      `"${t.strategies.join('; ')}"`, 
+      `"${t.emotions.join('; ')}"`, 
+      `"${t.mistakes.join('; ')}"`, 
+      t.aiReview?.score || 'N/A'
+    ];
+  });
+  
+  const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `trademind_trades_report_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+export const exportUsersToCSV = (users: User[]) => {
+  if (users.length === 0) return;
+  const headers = ["Identity ID", "Name", "Email", "Mobile", "Plan", "Joined Date", "Amount Paid", "Expiry Date", "Status", "Is Paid"];
+  const rows = users.map(u => [
+    u.displayId, u.name, u.email, u.mobile || 'N/A', u.selectedPlan || 'N/A', new Date(u.joinedAt).toLocaleDateString(), u.amountPaid || 0, u.expiryDate || 'N/A', u.status, u.isPaid ? 'Yes' : 'No'
   ]);
   const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement("a");
   link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `trademind_export_${new Date().toISOString().split('T')[0]}.csv`);
+  link.setAttribute("download", `trademind_user_registry_${new Date().toISOString().split('T')[0]}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

@@ -6,11 +6,12 @@ import { calculatePnL, calculateGrossPnL } from '../services/storageService';
 
 interface DashboardProps {
   trades: Trade[];
+  onExport?: () => void;
 }
 
 type TimeFilter = 'WEEK' | 'MONTH' | '3MONTHS' | '6MONTHS' | '1YEAR' | 'ALL';
 
-const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
+const Dashboard: React.FC<DashboardProps> = ({ trades, onExport }) => {
   const [filter, setFilter] = useState<TimeFilter>('ALL');
 
   const filteredTrades = useMemo(() => {
@@ -123,20 +124,32 @@ const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 bg-[#0a0f1d] p-1.5 rounded-xl border border-[#1e293b] w-full md:w-fit mx-auto">
-        {filterButtons.map(btn => (
-          <button
-            key={btn.value}
-            onClick={() => setFilter(btn.value)}
-            className={`flex-1 md:flex-none px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-sm font-semibold transition-all ${
-              filter === btn.value 
-                ? 'bg-emerald-500 text-slate-900 shadow-lg shadow-emerald-500/20' 
-                : 'text-slate-500 hover:text-slate-300 hover:bg-[#111827]'
-            }`}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex flex-wrap gap-2 bg-[#0a0f1d] p-1.5 rounded-xl border border-[#1e293b] w-full md:w-fit">
+          {filterButtons.map(btn => (
+            <button
+              key={btn.value}
+              onClick={() => setFilter(btn.value)}
+              className={`flex-1 md:flex-none px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-sm font-semibold transition-all ${
+                filter === btn.value 
+                  ? 'bg-emerald-500 text-slate-900 shadow-lg shadow-emerald-500/20' 
+                  : 'text-slate-500 hover:text-slate-300 hover:bg-[#111827]'
+              }`}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+
+        {onExport && (
+          <button 
+            onClick={onExport}
+            className="flex items-center gap-2 px-6 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 font-black text-[10px] uppercase tracking-widest hover:bg-blue-500/20 transition-all shadow-lg"
           >
-            {btn.label}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Extract Report
           </button>
-        ))}
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-4">

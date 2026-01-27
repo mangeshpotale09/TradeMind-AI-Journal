@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Trade, TradeStatus, TradeSide, TradeType } from '../types';
+import React, { useState, useRef } from 'react';
+import { Trade, TradeStatus, TradeSide, TradeType, Attachment } from '../types';
 import { calculatePnL } from '../services/storageService';
 import { getAIReviewForTrade } from '../services/geminiService';
 
@@ -16,7 +16,15 @@ interface TradeDetailProps {
 
 const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDelete, onClose, isAdmin = false, currentUserId }) => {
   const [exitPrice, setExitPrice] = useState(trade.exitPrice?.toString() || '');
+  
+  const formatDateTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  };
+
+  const [exitDate, setExitDate] = useState(formatDateTime(new Date().toISOString()));
   const [isReviewing, setIsReviewing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const pnl = calculatePnL(trade);
 
   // A user can modify if they are admin OR they own the trade
@@ -24,18 +32,22 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
 
   const handleCloseTrade = () => {
     if (!canModify) return;
+    const price = parseFloat(exitPrice);
+    if (isNaN(price)) {
+      alert('Please provide a valid Exit Price.');
+      return;
+    }
+
     const updatedTrade: Trade = {
       ...trade,
       status: TradeStatus.CLOSED,
-      exitPrice: parseFloat(exitPrice),
-      exitDate: new Date().toISOString()
+      exitPrice: price,
+      exitDate: new Date(exitDate).toISOString()
     };
     onUpdate(updatedTrade);
   };
 
   const handleAIReview = async () => {
-    // Only allow AI review if they have access (usually we link this to Pro/Approved status)
-    // For now, let's allow it if they are the owner or admin
     if (!canModify) return;
     setIsReviewing(true);
     const review = await getAIReviewForTrade(trade);
@@ -43,6 +55,28 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
       onUpdate({ ...trade, aiReview: review });
     }
     setIsReviewing(false);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      Array.from(files).forEach((file: File) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const newAttachment: Attachment = {
+            id: crypto.randomUUID(),
+            name: file.name,
+            type: file.type,
+            data: reader.result as string
+          };
+          onUpdate({
+            ...trade,
+            attachments: [...(trade.attachments || []), newAttachment]
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    }
   };
 
   const confirmAndDelete = () => {
@@ -59,6 +93,8 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
 
   return (
     <div className="bg-[#0e1421] rounded-2xl border border-[#1e293b] overflow-hidden animate-in slide-in-from-right duration-300 max-h-[90vh] flex flex-col shadow-2xl">
+      <input type="file" ref={fileInputRef} multiple accept="image/*" onChange={handleFileUpload} className="hidden" />
+      
       <div className="p-6 border-b border-[#1e293b] flex justify-between items-center bg-[#0a0f1d]/80 sticky top-0 z-10 backdrop-blur-md">
         <div className="flex items-center gap-4">
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl ${trade.side === TradeSide.LONG ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
@@ -152,28 +188,40 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
             <p className="bg-[#0a0f1d] p-5 rounded-2xl text-slate-300 whitespace-pre-wrap italic border border-[#1e293b] leading-relaxed text-sm">"{trade.notes || 'No context provided.'}"</p>
           </div>
 
-          {trade.attachments && trade.attachments.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-slate-400 font-black text-xs uppercase tracking-widest flex items-center gap-2">Evidence Vault ({trade.attachments.length})</h3>
-              <div className="grid grid-cols-1 gap-4">
-                {trade.attachments.map(att => (
-                  <div key={att.id} className="border border-[#1e293b] rounded-2xl overflow-hidden bg-[#0a0f1d]">
-                    {att.type.startsWith('image/') ? (
-                      <img src={att.data} alt={att.name} className="w-full h-auto cursor-zoom-in" onClick={() => window.open(att.data)} />
-                    ) : (
-                      <div className="p-6 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <svg className="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                          <span className="text-xs font-bold text-slate-300">{att.name}</span>
-                        </div>
-                        <a href={att.data} download={att.name} className="text-[10px] font-black uppercase text-emerald-400 hover:text-emerald-300">Download</a>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-slate-400 font-black text-xs uppercase tracking-widest flex items-center gap-2">Evidence Vault ({trade.attachments?.length || 0})</h3>
+              {canModify && (
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-[9px] font-black uppercase text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 px-3 py-1.5 rounded-lg hover:bg-emerald-500/5 transition-all"
+                >
+                  Add Evidence
+                </button>
+              )}
             </div>
-          )}
+            <div className="grid grid-cols-1 gap-4">
+              {trade.attachments && trade.attachments.length > 0 ? trade.attachments.map(att => (
+                <div key={att.id} className="border border-[#1e293b] rounded-2xl overflow-hidden bg-[#0a0f1d]">
+                  {att.type.startsWith('image/') ? (
+                    <img src={att.data} alt={att.name} className="w-full h-auto cursor-zoom-in" onClick={() => window.open(att.data)} />
+                  ) : (
+                    <div className="p-6 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <svg className="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <span className="text-xs font-bold text-slate-300">{att.name}</span>
+                      </div>
+                      <a href={att.data} download={att.name} className="text-[10px] font-black uppercase text-emerald-400 hover:text-emerald-300">Download</a>
+                    </div>
+                  )}
+                </div>
+              )) : (
+                <div className="p-10 border-2 border-dashed border-[#1e293b] rounded-2xl text-center">
+                   <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">No evidence captured yet</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -212,7 +260,7 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
 
       {trade.status === TradeStatus.OPEN && canModify && (
         <div className="p-6 border-t border-[#1e293b] bg-[#0a0f1d] flex flex-col md:flex-row gap-4 items-center">
-            <div className="flex-1 w-full">
+            <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-4">
                <input 
                 type="number"
                 step="0.01"
@@ -221,10 +269,16 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
                 onChange={(e) => setExitPrice(e.target.value)}
                 className="w-full bg-[#111827] border border-[#1e293b] rounded-xl p-3 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono"
               />
+              <input 
+                type="datetime-local"
+                value={exitDate}
+                onChange={(e) => setExitDate(e.target.value)}
+                className="w-full bg-[#111827] border border-[#1e293b] rounded-xl p-3 focus:ring-2 focus:ring-emerald-500 outline-none text-white text-sm"
+              />
             </div>
             <button 
               onClick={handleCloseTrade}
-              className="w-full md:w-fit bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black px-10 py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/10 uppercase text-xs tracking-widest"
+              className="w-full md:w-fit bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black px-10 py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/10 uppercase text-xs tracking-widest whitespace-nowrap"
             >
               Realize Trade
             </button>

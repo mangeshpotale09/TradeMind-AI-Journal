@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { getRegisteredUsers, getStoredTrades, saveUsers, updateUserStatus, registerUser, exportMasterDB, importMasterDB, getMasterSyncString, importFromSyncString } from '../services/storageService';
+import { getRegisteredUsers, getStoredTrades, saveUsers, updateUserStatus, registerUser, exportMasterDB, importMasterDB, getMasterSyncString, importFromSyncString, exportUsersToCSV } from '../services/storageService';
 import { User, UserRole, UserStatus, Trade, PlanType } from '../types';
 import TradeList from './TradeList';
 import TradeDetail from './TradeDetail';
@@ -78,6 +78,10 @@ const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
     alert('Master Sync Key copied to clipboard! Paste this on the other laptop.');
   };
 
+  const handleExportUsers = () => {
+    exportUsersToCSV(users);
+  };
+
   const pendingUsers = users.filter(u => u.status === UserStatus.WAITING_APPROVAL);
 
   return (
@@ -102,6 +106,11 @@ const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
             </button>
           ))}
         </div>
+        <div className="px-4">
+           <button onClick={onLogout} className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all" title="Logout">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+           </button>
+        </div>
       </div>
 
       {activeSubTab === 'overview' && (
@@ -120,7 +129,12 @@ const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
             {pendingUsers.map(user => (
               <div key={user.id} className="bg-[#0a0f1d] border border-[#1e293b] rounded-3xl p-6 space-y-4">
                 <div className="font-black text-white">{user.name}</div>
-                <img src={user.paymentScreenshot} className="rounded-xl border border-[#1e293b] h-32 w-full object-cover" alt="Proof" />
+                <img 
+                  src={user.paymentScreenshot} 
+                  className="rounded-xl border border-[#1e293b] h-32 w-full object-cover cursor-pointer hover:opacity-80 transition-opacity" 
+                  alt="Proof" 
+                  onClick={() => setSelectedProof({ user, img: user.paymentScreenshot! })}
+                />
                 <div className="flex gap-2">
                   <button onClick={() => handleStatusChange(user.id, UserStatus.APPROVED)} className="flex-1 bg-emerald-500 text-slate-900 font-black py-3 rounded-xl text-[10px] uppercase">Approve</button>
                   <button onClick={() => handleStatusChange(user.id, UserStatus.REJECTED)} className="flex-1 bg-red-500/10 text-red-500 border border-red-500/20 py-3 rounded-xl text-[10px] uppercase">Reject</button>
@@ -135,35 +149,67 @@ const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
         <div className="bg-[#0e1421] border border-[#1e293b] rounded-3xl overflow-hidden">
           <div className="p-8 border-b border-[#1e293b] flex justify-between items-center">
             <h3 className="text-xl font-black text-white">Full User Registry</h3>
+            <button 
+              onClick={handleExportUsers}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 font-black text-[9px] uppercase tracking-widest hover:bg-blue-500/20 transition-all shadow-lg"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              Extract Registry
+            </button>
           </div>
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-[#0a0f1d] text-slate-500 text-[10px] font-black uppercase border-b border-[#1e293b]">
-                <th className="px-6 py-4">Name</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(user => (
-                <tr key={user.id} className="border-b border-[#1e293b]">
-                  <td className="px-6 py-4 text-white font-bold">{user.name}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded text-[8px] font-black uppercase ${user.status === UserStatus.APPROVED ? 'bg-emerald-500/10 text-emerald-400' : 'bg-orange-500/10 text-orange-400'}`}>
-                      {user.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    {user.status !== UserStatus.APPROVED ? (
-                      <button onClick={() => handleStatusChange(user.id, UserStatus.APPROVED)} className="text-emerald-400 text-[10px] font-black uppercase">Grant Pro Access</button>
-                    ) : (
-                      <button onClick={() => handleStatusChange(user.id, UserStatus.PENDING)} className="text-red-400 text-[10px] font-black uppercase">Revoke Access</button>
-                    )}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-[#0a0f1d] text-slate-500 text-[9px] font-black uppercase border-b border-[#1e293b]">
+                  <th className="px-6 py-4">Identity ID</th>
+                  <th className="px-6 py-4">Name</th>
+                  <th className="px-6 py-4 text-center">Proof</th>
+                  <th className="px-6 py-4">Joined</th>
+                  <th className="px-6 py-4">Paid (₹)</th>
+                  <th className="px-6 py-4">Validity</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {users.map(user => (
+                  <tr key={user.id} className="border-b border-[#1e293b] hover:bg-[#111827] transition-colors">
+                    <td className="px-6 py-4 font-mono text-[10px] text-purple-400 font-bold">{user.displayId}</td>
+                    <td className="px-6 py-4 text-white font-bold text-xs">{user.name}</td>
+                    <td className="px-6 py-4 flex justify-center">
+                      {user.paymentScreenshot ? (
+                        <div 
+                          onClick={() => setSelectedProof({ user, img: user.paymentScreenshot! })}
+                          className="w-10 h-10 rounded-lg border border-[#1e293b] overflow-hidden cursor-zoom-in hover:border-emerald-500/50 transition-all bg-[#070a13]"
+                        >
+                          <img src={user.paymentScreenshot} alt="Evidence" className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg border border-[#1e293b] flex items-center justify-center text-slate-700 bg-[#070a13]">
+                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-slate-400 text-[10px] font-medium">{new Date(user.joinedAt).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 text-emerald-400 font-mono text-xs font-bold">₹{user.amountPaid || 0}</td>
+                    <td className="px-6 py-4 text-slate-300 font-mono text-[10px]">{user.expiryDate || 'N/A'}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${user.status === UserStatus.APPROVED ? 'bg-emerald-500/10 text-emerald-400' : 'bg-orange-500/10 text-orange-400'}`}>
+                        {user.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {user.status !== UserStatus.APPROVED ? (
+                        <button onClick={() => handleStatusChange(user.id, UserStatus.APPROVED)} className="text-emerald-400 text-[9px] font-black uppercase hover:underline">Approve Access</button>
+                      ) : (
+                        <button onClick={() => handleStatusChange(user.id, UserStatus.PENDING)} className="text-red-400 text-[9px] font-black uppercase hover:underline">Revoke Access</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -209,6 +255,32 @@ const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
               <button onClick={handleClipboardImport} className="w-full bg-blue-500 hover:bg-blue-400 text-slate-900 font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest transition-all">Import Master Key</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Proof Preview Modal */}
+      {selectedProof && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 animate-in fade-in duration-300">
+           <div className="w-full max-w-4xl max-h-[90vh] flex flex-col items-center gap-6">
+              <div className="flex justify-between items-center w-full px-4">
+                 <div className="space-y-1">
+                    <h3 className="text-white font-black text-lg">Transaction Evidence: {selectedProof.user.name}</h3>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Identity: {selectedProof.user.displayId}</p>
+                 </div>
+                 <button onClick={() => setSelectedProof(null)} className="p-2 text-slate-400 hover:text-white transition-colors bg-[#1e293b] rounded-full">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                 </button>
+              </div>
+              <div className="flex-1 w-full bg-[#0a0f1d] border border-[#1e293b] rounded-[3rem] overflow-hidden flex items-center justify-center relative">
+                 <img src={selectedProof.img} alt="Payment Receipt" className="max-w-full max-h-[70vh] object-contain shadow-2xl" />
+              </div>
+              <div className="flex gap-4 w-full justify-center">
+                 {selectedProof.user.status !== UserStatus.APPROVED && (
+                    <button onClick={() => handleStatusChange(selectedProof.user.id, UserStatus.APPROVED)} className="bg-emerald-500 text-slate-900 font-black px-12 py-4 rounded-2xl text-[11px] uppercase tracking-widest shadow-xl">Confirm & Approve</button>
+                 )}
+                 <button onClick={() => setSelectedProof(null)} className="bg-[#1e293b] text-white font-black px-12 py-4 rounded-2xl text-[11px] uppercase tracking-widest">Close Preview</button>
+              </div>
+           </div>
         </div>
       )}
     </div>

@@ -152,7 +152,7 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
   const steps = [
     { id: 1, name: 'Setup', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg> },
     { id: 2, name: 'Mindset', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> },
-    { id: 3, name: 'Evidence', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> }
+    { id: 3, name: 'Screenshots', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> }
   ];
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 3));
@@ -192,6 +192,8 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
 
       <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
         <form onSubmit={handleSubmit} id="trade-form" className="space-y-8">
+          <input type="file" ref={fileInputRef} multiple accept="image/*" onChange={handleFileChange} className="hidden" />
+
           {currentStep === 1 && (
             <div className="space-y-6 animate-in slide-in-from-right duration-300">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -224,7 +226,7 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Quantity (Units)</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Quantity</label>
                   <input type="number" required value={quantity} onChange={(e) => setQuantity(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono font-bold transition-all" />
                 </div>
               </div>
@@ -249,39 +251,35 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Entry Price (₹)</label>
-                  <input type="number" step="0.01" required value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono font-bold" />
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Entry Price (₹)</label>
+                    <input type="number" step="0.01" required value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)} className="w-full bg-[#0a0f1d] border border-emerald-500/30 rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono font-bold" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Entry Date & Time</label>
+                    <input type="datetime-local" required value={entryDate} onChange={(e) => setEntryDate(e.target.value)} className="w-full bg-[#0a0f1d] border border-emerald-500/30 rounded-2xl p-4 text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-white" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Entry Timestamp</label>
-                  <input type="datetime-local" required value={entryDate} onChange={(e) => setEntryDate(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-white" />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#0a0f1d]/40 p-6 rounded-3xl border border-[#1e293b]">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Exit Price (₹) - Optional</label>
+                    <input type="number" step="0.01" placeholder="Leave blank if OPEN" value={exitPrice} onChange={(e) => setExitPrice(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono font-bold" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Exit Date & Time</label>
+                    <input type="datetime-local" value={exitDate} onChange={(e) => setExitDate(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-white" />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Exit Price (₹)</label>
-                  <input type="number" step="0.01" value={exitPrice} onChange={(e) => setExitPrice(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono font-bold" placeholder="Running" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Exit Timestamp</label>
-                  <input 
-                    type="datetime-local" 
-                    value={exitDate} 
-                    onChange={(e) => setExitDate(e.target.value)} 
-                    className={`w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-white transition-opacity ${!exitPrice ? 'opacity-30' : 'opacity-100'}`} 
-                    disabled={!exitPrice}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Brokerage (₹)</label>
-                  <input type="number" step="0.01" value={fees} onChange={(e) => setFees(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono font-bold" />
-                </div>
+              <div className="pt-2">
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full py-4 border-2 border-dashed border-[#1e293b] rounded-2xl flex items-center justify-center gap-3 text-slate-500 hover:border-emerald-500 hover:text-emerald-500 transition-all group">
+                  <svg className="w-5 h-5 opacity-50 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Attach Proof ({attachments.length})</span>
+                </button>
               </div>
             </div>
           )}
@@ -323,7 +321,7 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
               </div>
 
               <div className="space-y-4">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Evidence capture & Documents</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Evidence Vault ({attachments.length})</label>
                 <div className="flex flex-col gap-4">
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {attachments.map(att => (
@@ -346,7 +344,6 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
                       <span className="text-[9px] font-black uppercase tracking-widest">Add File</span>
                     </button>
                   </div>
-                  <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} className="hidden" />
                 </div>
               </div>
             </div>
