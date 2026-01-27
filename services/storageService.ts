@@ -1,18 +1,17 @@
 
-import { Trade, User, UserRole, UserStatus, PlanType } from "../types";
+import { Trade, User, UserRole, UserStatus, PlanType, Transaction } from "../types";
 
 const TRADES_KEY = 'trademind_trades';
 const USERS_KEY = 'trademind_users';
 const SESSION_KEY = 'trademind_session';
+const TRANSACTIONS_KEY = 'trademind_transactions';
 
-// Helper to generate unique referral code
 const generateReferralCode = (name: string) => {
   const prefix = name.substring(0, 3).toUpperCase();
   const random = Math.floor(100 + Math.random() * 899);
   return `${prefix}${random}`;
 };
 
-// --- User Management ---
 export const getRegisteredUsers = (): User[] => {
   const data = localStorage.getItem(USERS_KEY);
   if (!data) {
@@ -79,30 +78,28 @@ export const registerUser = (user: Partial<User>): User => {
   return newUser;
 };
 
+// Fix: Add resetUserPassword to allow users to reset their password
 export const resetUserPassword = (email: string, mobile: string, newPassword: string): boolean => {
   const users = getRegisteredUsers();
-  const userIndex = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase() && u.mobile === mobile);
-  
-  if (userIndex === -1) return false;
-  
-  users[userIndex].password = newPassword;
+  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.mobile === mobile);
+  if (!user) return false;
+  user.password = newPassword;
   saveUsers(users);
   return true;
 };
 
-export const submitPaymentProof = (userId: string, screenshot: string) => {
-  const users = getRegisteredUsers();
-  const updated = users.map(u => u.id === userId ? { 
-    ...u, 
-    status: UserStatus.WAITING_APPROVAL,
-    paymentScreenshot: screenshot 
-  } : u);
-  saveUsers(updated);
-  
-  const sessionUser = getCurrentUser();
-  if (sessionUser && sessionUser.id === userId) {
-    setCurrentUser({ ...sessionUser, status: UserStatus.WAITING_APPROVAL, paymentScreenshot: screenshot });
-  }
+export const saveTransactions = (txs: Transaction[]) => {
+  localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(txs));
+};
+
+export const getTransactions = (): Transaction[] => {
+  const data = localStorage.getItem(TRANSACTIONS_KEY);
+  return data ? JSON.parse(data) : [];
+};
+
+export const logTransaction = (tx: Transaction) => {
+  const txs = getTransactions();
+  saveTransactions([...txs, tx]);
 };
 
 export const updateUserStatus = (userId: string, status: UserStatus) => {
@@ -132,7 +129,6 @@ export const updateUserStatus = (userId: string, status: UserStatus) => {
   saveUsers(updated);
 };
 
-// --- Trade Management ---
 export const saveTrades = (trades: Trade[]) => {
   localStorage.setItem(TRADES_KEY, JSON.stringify(trades));
 };
@@ -147,11 +143,11 @@ export const getStoredTrades = (userId?: string): Trade[] => {
   } catch { return []; }
 };
 
-// --- Master Sync Tools ---
 export const getMasterSyncString = (): string => {
   const data = {
     users: getRegisteredUsers(),
     trades: getStoredTrades(),
+    transactions: getTransactions(),
     timestamp: new Date().toISOString()
   };
   return btoa(unescape(encodeURIComponent(JSON.stringify(data))));
@@ -164,6 +160,7 @@ export const importFromSyncString = (syncString: string): boolean => {
     if (data.users && data.trades) {
       saveUsers(data.users);
       saveTrades(data.trades);
+      if (data.transactions) saveTransactions(data.transactions);
       return true;
     }
     return false;
@@ -172,10 +169,11 @@ export const importFromSyncString = (syncString: string): boolean => {
 
 export const exportMasterDB = () => {
   const masterData = {
-    version: '1.0',
+    version: '1.1',
     exportedAt: new Date().toISOString(),
     users: getRegisteredUsers(),
-    trades: getStoredTrades()
+    trades: getStoredTrades(),
+    transactions: getTransactions()
   };
   const blob = new Blob([JSON.stringify(masterData, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -185,19 +183,6 @@ export const exportMasterDB = () => {
   link.click();
 };
 
-export const importMasterDB = async (jsonString: string): Promise<boolean> => {
-  try {
-    const data = JSON.parse(jsonString);
-    if (data.users && data.trades) {
-      saveUsers(data.users);
-      saveTrades(data.trades);
-      return true;
-    }
-    return false;
-  } catch { return false; }
-};
-
-// --- Calculations ---
 export const calculateGrossPnL = (trade: Trade): number => {
   if (trade.status === 'OPEN' || trade.exitPrice === undefined) return 0;
   const entryTotal = trade.entryPrice * trade.quantity;

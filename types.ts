@@ -25,10 +25,10 @@ export enum UserRole {
 }
 
 export enum UserStatus {
-  PENDING = 'PENDING', // Registered but no payment proof
-  WAITING_APPROVAL = 'WAITING_APPROVAL', // Payment proof submitted
-  APPROVED = 'APPROVED', // Full access
-  REJECTED = 'REJECTED' // Payment proof invalid
+  PENDING = 'PENDING',
+  WAITING_APPROVAL = 'WAITING_APPROVAL',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED'
 }
 
 export enum PlanType {
@@ -37,13 +37,24 @@ export enum PlanType {
   ANNUAL = 'ANNUAL'
 }
 
+export interface Transaction {
+  id: string;
+  userId: string;
+  userName: string;
+  plan: PlanType;
+  amount: number;
+  method: 'CARD' | 'WALLET' | 'BANK';
+  timestamp: string;
+  status: 'SUCCESS' | 'PENDING';
+}
+
 export interface User {
   id: string;
-  displayId: string; // Professional User ID for display (e.g., TM-12345)
+  displayId: string;
   email: string;
   name: string;
   mobile?: string;
-  password?: string; // Simple local password for demo
+  password?: string;
   isPaid: boolean;
   role: UserRole;
   status: UserStatus;
@@ -52,9 +63,9 @@ export interface User {
   amountPaid?: number;
   expiryDate?: string;
   selectedPlan?: PlanType;
-  referredBy?: string; // The referral code used during registration
-  ownReferralCode: string; // Unique code for this user to share
-  hasReferralDiscount?: boolean; // Flag to indicate 10% discount eligibility on renewal
+  referredBy?: string;
+  ownReferralCode: string;
+  hasReferralDiscount?: boolean;
 }
 
 export interface OptionDetails {
@@ -79,7 +90,7 @@ export interface Attachment {
   id: string;
   name: string;
   type: string;
-  data: string; // Base64
+  data: string;
 }
 
 export interface Trade {
