@@ -1,3 +1,4 @@
+
 import { getRegisteredUsers, getStoredTrades, saveUsers, saveTrades } from "./storageService";
 
 const SCOPES = "https://www.googleapis.com/auth/drive.file";
@@ -10,7 +11,6 @@ let gisInited = false;
 
 /**
  * Initializes Google API Client and Identity Services.
- * Assumes scripts are loaded in index.html.
  */
 export const initializeGoogleSync = (): Promise<void> => {
   return new Promise((resolve) => {
@@ -22,21 +22,35 @@ export const initializeGoogleSync = (): Promise<void> => {
     const google = (window as any).google;
 
     if (!gapi || !google) {
+      console.warn("Google API scripts not yet loaded.");
       setTimeout(() => initializeGoogleSync().then(resolve), 500);
       return;
     }
 
+    if (gapiInited && gisInited) {
+      resolve();
+      return;
+    }
+
     gapi.load("client", async () => {
-      await gapi.client.init({
-        apiKey: process.env.API_KEY,
-        discoveryDocs: [DISCOVERY_DOC],
-      });
-      gapiInited = true;
-      checkInit();
+      try {
+        await gapi.client.init({
+          apiKey: process.env.API_KEY,
+          discoveryDocs: [DISCOVERY_DOC],
+        });
+        gapiInited = true;
+        checkInit();
+      } catch (err) {
+        console.error("GAPI Init Error", err);
+      }
     });
 
+    // Use API Key as client ID fallback if specific ID not provided, 
+    // though typically GIS needs a proper Client ID.
+    const clientId = (process.env as any).GOOGLE_CLIENT_ID || (process.env.API_KEY?.split('-')[0] + ".apps.googleusercontent.com");
+    
     tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: (process.env as any).GOOGLE_CLIENT_ID || "",
+      client_id: clientId,
       scope: SCOPES,
       callback: "", // defined at runtime
     });
@@ -59,7 +73,9 @@ export const authenticateCloud = (): Promise<string> => {
       };
 
       const gapi = (window as any).gapi;
-      if (gapi.client.getToken() === null) {
+      const token = gapi.client.getToken();
+      
+      if (!token) {
         tokenClient.requestAccessToken({ prompt: "consent" });
       } else {
         tokenClient.requestAccessToken({ prompt: "" });
@@ -79,7 +95,8 @@ export const syncToCloud = async (): Promise<boolean> => {
     const data = {
       users: getRegisteredUsers(),
       trades: getStoredTrades(),
-      syncedAt: new Date().toISOString()
+      syncedAt: new Date().toISOString(),
+      device: navigator.userAgent
     };
     const content = JSON.stringify(data);
 
@@ -121,6 +138,7 @@ export const syncToCloud = async (): Promise<boolean> => {
     });
 
     await request;
+    localStorage.setItem('tm_last_cloud_sync', new Date().toISOString());
     return true;
   } catch (error) {
     console.error("Cloud Sync Error:", error);
@@ -136,12 +154,11 @@ export const restoreFromCloud = async (): Promise<boolean> => {
     const gapi = (window as any).gapi;
     const response = await gapi.client.drive.files.list({
       q: `name = '${VAULT_FILE_NAME}' and trashed = false`,
-      fields: "files(id)",
+      fields: "files(id, modifiedTime)",
     });
 
     const file = response.result.files[0];
     if (!file) {
-      alert("No vault found in your Google Drive.");
       return false;
     }
 
@@ -155,11 +172,44 @@ export const restoreFromCloud = async (): Promise<boolean> => {
     if (data.users && data.trades) {
       saveUsers(data.users);
       saveTrades(data.trades);
+      localStorage.setItem('tm_last_cloud_sync', file.modifiedTime || new Date().toISOString());
       return true;
     }
     return false;
   } catch (error) {
     console.error("Cloud Restore Error:", error);
     return false;
+  }
+};
+
+/**
+ * Checks if a newer vault exists on the cloud.
+ */
+export const checkCloudVaultStatus = async (): Promise<{ hasNewer: boolean, lastModified?: string } | null> => {
+  try {
+    const gapi = (window as any).gapi;
+    const token = gapi?.client?.getToken();
+    if (!token) return null;
+
+    const response = await gapi.client.drive.files.list({
+      q: `name = '${VAULT_FILE_NAME}' and trashed = false`,
+      fields: "files(id, modifiedTime)",
+    });
+
+    const file = response.result.files[0];
+    if (!file) return null;
+
+    const lastSync = localStorage.getItem('tm_last_cloud_sync');
+    if (!lastSync) return { hasNewer: true, lastModified: file.modifiedTime };
+
+    const localTime = new Date(lastSync).getTime();
+    const cloudTime = new Date(file.modifiedTime).getTime();
+
+    return {
+      hasNewer: cloudTime > localTime + 5000, // 5s grace period
+      lastModified: file.modifiedTime
+    };
+  } catch {
+    return null;
   }
 };

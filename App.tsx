@@ -8,6 +8,7 @@ import {
   getCurrentUser, 
   setCurrentUser 
 } from './services/storageService';
+import { checkCloudVaultStatus, initializeGoogleSync } from './services/googleDriveService';
 
 import Dashboard from './components/Dashboard';
 import TradeList from './components/TradeList';
@@ -30,6 +31,7 @@ const App: React.FC = () => {
   const [isEntryFormOpen, setIsEntryFormOpen] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
+  const [cloudStatus, setCloudStatus] = useState<'off' | 'active' | 'update'>('off');
 
   // Sync trades when user changes
   useEffect(() => {
@@ -39,6 +41,22 @@ const App: React.FC = () => {
         ? getStoredTrades() 
         : getStoredTrades(currentUser.id);
       setTrades(tradesToLoad);
+    }
+  }, [currentUser]);
+
+  // Cloud Monitoring for Admin
+  useEffect(() => {
+    if (currentUser?.role === UserRole.ADMIN) {
+      const monitor = async () => {
+        await initializeGoogleSync();
+        const status = await checkCloudVaultStatus();
+        if (status) {
+          setCloudStatus(status.hasNewer ? 'update' : 'active');
+        }
+      };
+      monitor();
+      const interval = setInterval(monitor, 60000);
+      return () => clearInterval(interval);
     }
   }, [currentUser]);
 
@@ -162,10 +180,13 @@ const App: React.FC = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-4 py-3 rounded-2xl transition-all ${activeTab === tab.id ? 'bg-emerald-500 text-slate-900 shadow-lg shadow-emerald-500/20' : 'text-slate-500 hover:text-slate-200'}`}
+            className={`flex items-center gap-2 px-4 py-3 rounded-2xl transition-all relative ${activeTab === tab.id ? 'bg-emerald-500 text-slate-900 shadow-lg shadow-emerald-500/20' : 'text-slate-500 hover:text-slate-200'}`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon}></path></svg>
             <span className="hidden md:block text-[10px] font-black uppercase tracking-widest">{tab.label}</span>
+            {tab.id === 'admin' && cloudStatus === 'update' && (
+               <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 border-2 border-[#0e1421] rounded-full animate-bounce"></div>
+            )}
           </button>
         ))}
         <div className="w-px h-6 bg-[#1e293b] mx-1"></div>
@@ -183,7 +204,12 @@ const App: React.FC = () => {
                {currentUser.role === UserRole.ADMIN && (
                  <span className="bg-purple-500/10 text-purple-400 text-[10px] font-black px-2 py-0.5 rounded border border-purple-500/20 uppercase tracking-widest">Admin Console</span>
                )}
-               <span className="text-slate-600 text-[10px] font-black uppercase tracking-widest">System Operational</span>
+               {cloudStatus !== 'off' && (
+                 <span className={`text-[10px] font-black px-2 py-0.5 rounded border uppercase tracking-widest flex items-center gap-1.5 ${cloudStatus === 'active' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-orange-500/10 text-orange-500 border-orange-500/20'}`}>
+                   <div className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'active' ? 'bg-emerald-500' : 'bg-orange-500 animate-pulse'}`}></div>
+                   Cloud Linked
+                 </span>
+               )}
             </div>
             <h1 className="text-4xl font-black text-white tracking-tighter">
               {currentUser.name.split(' ')[0]}'s <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">Terminal</span>

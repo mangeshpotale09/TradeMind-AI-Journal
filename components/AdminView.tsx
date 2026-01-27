@@ -2,9 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { getRegisteredUsers, getStoredTrades, saveUsers, updateUserStatus, registerUser, exportMasterDB, importMasterDB, getMasterSyncString, importFromSyncString, exportUsersToCSV } from '../services/storageService';
 import { User, UserRole, UserStatus, Trade, PlanType } from '../types';
-import { initializeGoogleSync, authenticateCloud, syncToCloud, restoreFromCloud } from '../services/googleDriveService';
-import TradeList from './TradeList';
-import TradeDetail from './TradeDetail';
+import { initializeGoogleSync, authenticateCloud, syncToCloud, restoreFromCloud, checkCloudVaultStatus } from '../services/googleDriveService';
 
 type AdminTab = 'overview' | 'verifications' | 'registry' | 'sync';
 
@@ -19,12 +17,24 @@ const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
   const [selectedProof, setSelectedProof] = useState<{ user: User, img: string } | null>(null);
   const [syncStr, setSyncStr] = useState('');
   const [isCloudLoading, setIsCloudLoading] = useState(false);
-  const [cloudStatus, setCloudStatus] = useState<'idle' | 'connected' | 'error'>('idle');
+  const [cloudInfo, setCloudInfo] = useState<{ hasNewer: boolean, lastModified?: string } | null>(null);
+  const [lastLocalSync, setLastLocalSync] = useState<string | null>(localStorage.getItem('tm_last_cloud_sync'));
 
   useEffect(() => {
     setUsers(getRegisteredUsers());
     setAllTrades(getStoredTrades());
   }, [activeSubTab]);
+
+  useEffect(() => {
+    // Check for cloud updates periodically if active
+    const checkCloud = async () => {
+      const status = await checkCloudVaultStatus();
+      if (status) setCloudInfo(status);
+    };
+    checkCloud();
+    const interval = setInterval(checkCloud, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const stats = useMemo(() => {
     const paidUsers = users.filter(u => u.isPaid).length;
@@ -49,13 +59,13 @@ const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
       await authenticateCloud();
       const success = await syncToCloud();
       if (success) {
-        setCloudStatus('connected');
+        setLastLocalSync(new Date().toISOString());
+        setCloudInfo(prev => prev ? { ...prev, hasNewer: false } : null);
         alert('Vault successfully uploaded to Google Drive.');
       }
     } catch (err) {
       console.error(err);
-      setCloudStatus('error');
-      alert('Cloud Sync Failed. Check if API key supports Drive permissions.');
+      alert('Cloud Sync Failed. Ensure you allow Drive permissions in the popup.');
     } finally {
       setIsCloudLoading(false);
     }
@@ -69,12 +79,14 @@ const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
       await authenticateCloud();
       const success = await restoreFromCloud();
       if (success) {
-        alert('Terminal State Restored! Reloading...');
+        alert('Terminal State Restored from Cloud Vault!');
         window.location.reload();
+      } else {
+        alert('No vault found in your Google Drive.');
       }
     } catch (err) {
       console.error(err);
-      alert('Cloud Restore Failed. No vault found or permission denied.');
+      alert('Cloud Restore Failed. Authentication error or network issue.');
     } finally {
       setIsCloudLoading(false);
     }
@@ -120,6 +132,7 @@ const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon}></path></svg>
               <span className="text-[11px] font-black uppercase tracking-widest">{item.label}</span>
               {item.count !== undefined && item.count > 0 && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-orange-500 text-white">{item.count}</span>}
+              {item.id === 'sync' && cloudInfo?.hasNewer && <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></div>}
             </button>
           ))}
         </div>
@@ -216,52 +229,74 @@ const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
 
       {activeSubTab === 'sync' && (
         <div className="space-y-8 animate-in slide-in-from-bottom-4">
-          <div className="bg-emerald-500/10 border border-emerald-500/30 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="space-y-2">
-              <h3 className="text-xl font-black text-emerald-400">Google Cloud Vault</h3>
-              <p className="text-slate-400 text-[11px] max-w-md font-medium">Recommended for multi-device sync. Securely backup the entire terminal state (Users + Trades) to your private Google Drive.</p>
-            </div>
-            <div className="flex gap-3 w-full md:w-auto">
-              <button 
-                onClick={handleCloudBackup} 
-                disabled={isCloudLoading}
-                className="flex-1 md:flex-none bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black px-6 py-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-xl transition-all disabled:opacity-50"
-              >
-                {isCloudLoading ? 'Vaulting...' : 'Backup to Drive'}
-              </button>
-              <button 
-                onClick={handleCloudRestore} 
-                disabled={isCloudLoading}
-                className="flex-1 md:flex-none bg-[#1e293b] hover:bg-[#334155] text-white font-black px-6 py-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-xl transition-all disabled:opacity-50 border border-emerald-500/20"
-              >
-                Restore Vault
-              </button>
+          <div className="bg-emerald-500/5 border border-emerald-500/20 p-10 rounded-[3rem] relative overflow-hidden">
+            {cloudInfo?.hasNewer && (
+              <div className="absolute top-0 left-0 w-full bg-orange-500/20 border-b border-orange-500/30 py-2 px-10 flex items-center justify-between">
+                <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Update Available in Cloud Vault</span>
+                <span className="text-[10px] font-bold text-orange-300">Cloud modified: {new Date(cloudInfo.lastModified!).toLocaleString()}</span>
+              </div>
+            )}
+            
+            <div className="flex flex-col md:flex-row items-center justify-between gap-8 pt-6">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-500">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+                  </div>
+                  <h3 className="text-2xl font-black text-white">Cloud Vault</h3>
+                </div>
+                <p className="text-slate-400 text-[11px] max-w-md font-medium leading-relaxed">Cross-device synchronization for Terminal state. Syncing will securely backup all users and trades to your private Google Drive app-folder.</p>
+                <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                   <div className="flex items-center gap-1.5">
+                     <div className={`w-1.5 h-1.5 rounded-full ${lastLocalSync ? 'bg-emerald-500' : 'bg-slate-700'}`}></div>
+                     Last Push: {lastLocalSync ? new Date(lastLocalSync).toLocaleString() : 'Never'}
+                   </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 w-full md:w-auto">
+                <button 
+                  onClick={handleCloudBackup} 
+                  disabled={isCloudLoading}
+                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black px-8 py-5 rounded-2xl text-[10px] uppercase tracking-widest shadow-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isCloudLoading ? 'Working...' : 'Push to Cloud'}
+                </button>
+                <button 
+                  onClick={handleCloudRestore} 
+                  disabled={isCloudLoading}
+                  className={`px-8 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all disabled:opacity-50 border ${cloudInfo?.hasNewer ? 'bg-orange-500 text-slate-900 border-orange-400' : 'bg-[#1e293b] text-white border-[#334155]'}`}
+                >
+                  {cloudInfo?.hasNewer ? 'Pull Update' : 'Restore Vault'}
+                </button>
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="bg-[#0e1421] border border-[#1e293b] p-8 rounded-3xl space-y-6">
-              <h4 className="text-xs font-black text-white uppercase tracking-widest">Manual Key Bridge</h4>
-              <p className="text-slate-500 text-[11px]">One-time transfer via clipboard. Best for small registries.</p>
+              <h4 className="text-xs font-black text-white uppercase tracking-widest">Master Key Bridge</h4>
+              <p className="text-slate-500 text-[11px]">One-time data transfer via clipboard. This generates an encrypted snapshot of the entire system.</p>
               <button onClick={handleCopySyncString} className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-xl transition-all">Copy Master Sync Key</button>
             </div>
 
             <div className="bg-[#0e1421] border border-[#1e293b] p-8 rounded-3xl space-y-6">
-              <h4 className="text-xs font-black text-white uppercase tracking-widest">Receive Key</h4>
+              <h4 className="text-xs font-black text-white uppercase tracking-widest">Receive Master Key</h4>
               <textarea 
                 value={syncStr} 
                 onChange={(e) => setSyncStr(e.target.value)}
-                placeholder="Paste Master Key..."
-                className="w-full h-24 bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 text-[10px] text-purple-400 font-mono focus:ring-2 focus:ring-purple-500 outline-none"
+                placeholder="Paste Master Key snapshot..."
+                className="w-full h-24 bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 text-[10px] text-purple-400 font-mono focus:ring-2 focus:ring-purple-500 outline-none resize-none"
               />
-              <button onClick={handleClipboardImport} className="w-full bg-blue-500 hover:bg-blue-400 text-slate-900 font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest transition-all">Import Key</button>
+              <button onClick={handleClipboardImport} className="w-full bg-blue-500 hover:bg-blue-400 text-slate-900 font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest transition-all">Sync from Key</button>
             </div>
           </div>
           
-          <div className="bg-[#0e1421] border border-[#1e293b] p-8 rounded-3xl">
-             <h4 className="text-xs font-black text-white uppercase tracking-widest mb-4">Hard Backup (File)</h4>
-             <p className="text-slate-500 text-[11px] mb-6">Download the raw JSON database for offline archiving.</p>
-             <button onClick={exportMasterDB} className="bg-[#1e293b] hover:bg-[#334155] text-slate-200 font-black px-8 py-4 rounded-2xl text-[10px] uppercase tracking-widest border border-[#334155] transition-all">Download Master DB (.json)</button>
+          <div className="bg-[#0e1421] border border-[#1e293b] p-8 rounded-3xl flex items-center justify-between">
+             <div className="space-y-1">
+                <h4 className="text-xs font-black text-white uppercase tracking-widest">Hard Disk Backup</h4>
+                <p className="text-slate-500 text-[11px]">Download raw JSON database for offline archiving.</p>
+             </div>
+             <button onClick={exportMasterDB} className="bg-[#1e293b] hover:bg-[#334155] text-slate-200 font-black px-8 py-4 rounded-2xl text-[10px] uppercase tracking-widest border border-[#334155] transition-all">Download DB</button>
           </div>
         </div>
       )}
