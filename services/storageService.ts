@@ -12,7 +12,7 @@ const validateEmail = (email: string) => {
   return String(email)
     .toLowerCase()
     .match(
-      /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+      /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
     );
 };
 
@@ -104,24 +104,25 @@ export const registerUser = async (user: Partial<User>): Promise<User | null> =>
   });
 
   if (authError) throw authError;
-  if (!authData.user) throw new Error("Authentication failed to return a user.");
+  if (!authData.user) throw new Error("Authentication failed to return a valid user identity.");
 
   const referralCode = generateReferralCode(user.name);
+  const isAdminEmail = user.email.toLowerCase() === 'potalemangesh09@gmail.com';
   
   // 2. Create entry in 'profiles' table
   const newUserProfile = {
     id: authData.user.id,
     display_id: `TM-${Math.floor(10000 + Math.random() * 89999)}`,
-    email: user.email,
+    email: user.email.toLowerCase(),
     name: user.name,
     mobile: user.mobile || null,
     selected_plan: user.selectedPlan || PlanType.ANNUAL,
-    is_paid: false,
-    role: user.email === 'potalemangesh09@gmail.com' ? UserRole.ADMIN : UserRole.USER,
-    status: user.email === 'potalemangesh09@gmail.com' ? UserStatus.APPROVED : UserStatus.PENDING,
+    is_paid: isAdminEmail,
+    role: isAdminEmail ? UserRole.ADMIN : UserRole.USER,
+    status: isAdminEmail ? UserStatus.APPROVED : UserStatus.PENDING,
     joined_at: new Date().toISOString(),
     amount_paid: 0,
-    expiry_date: 'Pending',
+    expiry_date: isAdminEmail ? 'Lifetime' : 'Pending',
     referred_by: user.referredBy || null,
     own_referral_code: referralCode,
     has_referral_discount: !!user.referredBy
@@ -133,7 +134,7 @@ export const registerUser = async (user: Partial<User>): Promise<User | null> =>
 
   if (profileError) {
     console.error("Profile creation error:", profileError);
-    throw new Error("Account created but profile initialization failed. Please try logging in or contact support.");
+    throw new Error("Identity created in Auth, but Profile initialization failed. Please contact Mangesh for manual activation.");
   }
 
   return {
@@ -165,23 +166,20 @@ export const validateLogin = async (email: string, pass: string): Promise<User |
     throw new Error(`Email address "${email}" is invalid.`);
   }
 
-  if (pass.length < 6) {
-    throw new Error("Password should be at least 6 characters.");
-  }
-
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email,
+    email: email.toLowerCase(),
     password: pass
   });
 
   if (authError) {
-    if (authError.message.includes('Invalid login credentials')) {
-      throw new Error("Invalid login credentials. Please check your email and password.");
+    // Catch common "Invalid credentials" error and provide a hint
+    if (authError.message.toLowerCase().includes('invalid login credentials')) {
+      throw new Error("Invalid login credentials. If you haven't registered this account yet, please use the Register tab first.");
     }
     throw authError;
   }
 
-  if (!authData.user) throw new Error("Login failed unexpectedly.");
+  if (!authData.user) throw new Error("Terminal connection failed. Please check your network.");
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
@@ -191,18 +189,21 @@ export const validateLogin = async (email: string, pass: string): Promise<User |
 
   if (profileError || !profile) {
     console.error("Profile retrieval error:", profileError);
-    throw new Error("User profile not found. Please contact support to sync your profile data.");
+    throw new Error("Auth successful, but Profile data not found. Ensure you registered correctly or contact admin.");
   }
 
-  // Ensure the specific admin account has Admin role even if DB state is weird
-  const finalRole = profile.email === 'potalemangesh09@gmail.com' ? UserRole.ADMIN : (profile.role as UserRole);
+  // Hardcoded check for the specific admin account to ensure privilege escalation
+  const isAdminEmail = profile.email.toLowerCase() === 'potalemangesh09@gmail.com';
+  const finalRole = isAdminEmail ? UserRole.ADMIN : (profile.role as UserRole);
+  const finalStatus = isAdminEmail ? UserStatus.APPROVED : (profile.status as UserStatus);
 
   return {
     ...profile,
     role: finalRole,
+    status: finalStatus,
+    isPaid: isAdminEmail ? true : profile.is_paid,
     displayId: profile.display_id,
     joinedAt: profile.joined_at,
-    isPaid: profile.is_paid,
     selectedPlan: profile.selected_plan as PlanType,
     ownReferralCode: profile.own_referral_code,
     referredBy: profile.referred_by,
@@ -216,7 +217,7 @@ export const resetUserPassword = async (email: string, mobile: string, newPasswo
   const { data, error } = await supabase
     .from('profiles')
     .select('id')
-    .eq('email', email)
+    .eq('email', email.toLowerCase())
     .eq('mobile', mobile)
     .single();
 
@@ -370,7 +371,7 @@ export const saveUsers = async (users: User[]) => {
   const payloads = users.map(u => ({
     id: u.id,
     display_id: u.displayId,
-    email: u.email,
+    email: u.email.toLowerCase(),
     name: u.name,
     mobile: u.mobile,
     selected_plan: u.selectedPlan,

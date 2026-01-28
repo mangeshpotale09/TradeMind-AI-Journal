@@ -25,7 +25,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setErrorMessage(`Email address "${email}" is invalid.`);
+      setErrorMessage(`Email address "${email}" is invalid format.`);
       return false;
     }
     if (mode !== 'FORGOT' && password.length < 6) {
@@ -55,7 +55,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
       if (mode === 'REGISTER') {
         const newUser = await registerUser({ email, password, name, mobile, selectedPlan });
         if (newUser) {
-          alert('Identity initialized successfully! Please sign in with your credentials.');
+          alert('Identity initialized successfully! You can now log in.');
           setMode('LOGIN');
           setPassword('');
         }
@@ -63,7 +63,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
         const user = await validateLogin(email, password);
         if (user) {
           if (mode === 'ADMIN' && user.role !== UserRole.ADMIN) {
-            setErrorMessage('Access Denied: Admin level clearance required for this console.');
+            setErrorMessage('Access Denied: You do not have administrator privileges.');
             setIsSubmitting(false);
             return;
           }
@@ -72,24 +72,23 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
       } else if (mode === 'FORGOT') {
         const success = await resetUserPassword(email, mobile, newPassword);
         if (success) {
-          alert('Logic Reset command issued. If your details match our records, instructions have been sent.');
+          alert('Logic Reset command issued successfully.');
           setMode('LOGIN');
           setPassword('');
           setNewPassword('');
         } else {
-          setErrorMessage('Verification Error: Provided Email or Mobile does not match any existing record.');
+          setErrorMessage('Verification Error: No record found with this email/mobile.');
         }
       }
     } catch (err: any) {
       console.error("Auth Exception:", err);
       let msg = err.message || 'An unexpected logic error occurred.';
       
-      // Standardize messages from Supabase
-      if (msg.includes('Invalid login credentials')) msg = "Invalid login credentials. Please check your email and password.";
-      if (msg.includes('Email address') && msg.includes('invalid')) msg = `Email address "${email}" is invalid.`;
-      if (msg.includes('Password') && msg.includes('6 characters')) msg = "Password should be at least 6 characters.";
-      if (msg.includes('Profile not found')) msg = "User profile not found. Please contact support to sync your profile data.";
-      
+      // Handle Supabase specific network errors or key issues
+      if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('unexpected error')) {
+        msg = "Terminal Connection Failure: Please check your internet or Supabase configuration.";
+      }
+
       setErrorMessage(msg);
     } finally {
       setIsSubmitting(false);
@@ -139,7 +138,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
           
           {errorMessage && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-[10px] font-black uppercase tracking-widest text-center animate-in shake duration-300">
-              <span className="block font-bold mb-1">AUTH ERROR</span>
+              <span className="block font-bold mb-1">ACCESS ERROR</span>
               {errorMessage}
             </div>
           )}
