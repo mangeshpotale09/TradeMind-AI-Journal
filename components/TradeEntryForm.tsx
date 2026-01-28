@@ -1,6 +1,7 @@
 
-import React, { useState, useRef, useEffect } from 'react';
 import { Trade, TradeType, TradeSide, OptionType, TradeStatus, Attachment } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { generateUUID } from '../services/storageService';
 
 interface TradeEntryFormProps {
   initialTrade?: Trade;
@@ -44,10 +45,10 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
   const [symbol, setSymbol] = useState(initialTrade?.symbol || 'NIFTY 50');
   const [customSymbol, setCustomSymbol] = useState('');
   const [side, setSide] = useState<TradeSide>(initialTrade?.side || TradeSide.LONG);
-  const [entryPrice, setEntryPrice] = useState(initialTrade?.entryPrice.toString() || '');
+  const [entryPrice, setEntryPrice] = useState(initialTrade?.entryPrice?.toString() || '');
   const [exitPrice, setExitPrice] = useState(initialTrade?.exitPrice?.toString() || '');
-  const [quantity, setQuantity] = useState(initialTrade?.quantity.toString() || '');
-  const [fees, setFees] = useState(initialTrade?.fees.toString() || '0');
+  const [quantity, setQuantity] = useState(initialTrade?.quantity?.toString() || '');
+  const [fees, setFees] = useState(initialTrade?.fees?.toString() || '0');
   const [notes, setNotes] = useState(initialTrade?.notes || '');
   
   const formatDateTime = (dateStr: string) => {
@@ -66,7 +67,7 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
   const [selectedStrategies, setSelectedStrategies] = useState<string[]>(initialTrade?.strategies || []);
   const [attachments, setAttachments] = useState<Attachment[]>(initialTrade?.attachments || []);
 
-  const [strike, setStrike] = useState(initialTrade?.optionDetails?.strike.toString() || '');
+  const [strike, setStrike] = useState(initialTrade?.optionDetails?.strike?.toString() || '');
   const [expiration, setExpiration] = useState(initialTrade?.optionDetails?.expiration || '');
   const [optionType, setOptionType] = useState<OptionType>(initialTrade?.optionDetails?.option_type || OptionType.CALL);
 
@@ -95,7 +96,7 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
         const reader = new FileReader();
         reader.onloadend = () => {
           const newAttachment: Attachment = {
-            id: crypto.randomUUID(),
+            id: generateUUID(),
             name: file.name,
             type: file.type,
             data: reader.result as string
@@ -111,25 +112,35 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
     setAttachments(prev => prev.filter(a => a.id !== id));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const parseNum = (val: string): number => {
+    const n = parseFloat(val);
+    return isNaN(n) ? 0 : n;
+  };
+
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     
     const finalSymbol = symbol === 'OTHER' ? customSymbol.toUpperCase() : symbol;
+    if (!finalSymbol) {
+      alert("Asset Symbol is required.");
+      return;
+    }
+
     const isClosed = exitPrice !== '' && !isNaN(parseFloat(exitPrice));
 
     const newTrade: Trade = {
       ...(initialTrade || {}),
       userId: initialTrade?.userId || userId,
-      id: initialTrade?.id || crypto.randomUUID(),
+      id: initialTrade?.id || generateUUID(),
       symbol: finalSymbol,
       type,
       side,
-      entryPrice: parseFloat(entryPrice),
-      exitPrice: isClosed ? parseFloat(exitPrice) : undefined,
-      quantity: parseFloat(quantity),
+      entryPrice: parseNum(entryPrice),
+      exitPrice: isClosed ? parseNum(exitPrice) : undefined,
+      quantity: parseNum(quantity),
       entryDate: new Date(entryDate).toISOString(),
       exitDate: isClosed ? (exitDate ? new Date(exitDate).toISOString() : new Date().toISOString()) : undefined,
-      fees: parseFloat(fees),
+      fees: parseNum(fees),
       status: isClosed ? TradeStatus.CLOSED : TradeStatus.OPEN,
       tags: initialTrade?.tags || [],
       notes,
@@ -139,7 +150,7 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
       attachments,
       ...(type === TradeType.OPTION ? {
         optionDetails: {
-          strike: parseFloat(strike),
+          strike: parseNum(strike),
           expiration,
           option_type: optionType,
         }
@@ -356,7 +367,7 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
         {currentStep < 3 ? (
           <button type="button" onClick={nextStep} className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black py-4 rounded-2xl shadow-lg transition-all">Continue</button>
         ) : (
-          <button type="submit" form="trade-form" className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black py-4 rounded-2xl shadow-lg transition-all">{initialTrade ? 'Save Entry' : 'Commit to Tape'}</button>
+          <button type="button" onClick={() => handleSubmit()} className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black py-4 rounded-2xl shadow-lg transition-all">{initialTrade ? 'Save Entry' : 'Commit to Tape'}</button>
         )}
       </div>
     </div>

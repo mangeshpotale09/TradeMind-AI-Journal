@@ -55,6 +55,8 @@ export const getWeeklyInsights = async (trades: Trade[]): Promise<string | null>
       `,
       config: {
         systemInstruction: "You are an expert performance coach for hedge fund traders. Analyze the batch of trades for patterns in behavior, timing, and risk management. Provide a high-level summary, identify the biggest psychological leak, and suggest a focus for next week.",
+        // Fix: Both maxOutputTokens and thinkingBudget must be set when using thinkingConfig
+        maxOutputTokens: 4096,
         thinkingConfig: { thinkingBudget: 2000 }
       }
     });

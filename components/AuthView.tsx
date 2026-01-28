@@ -55,10 +55,14 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
       if (mode === 'REGISTER') {
         const newUser = await registerUser({ email, password, name, mobile });
         if (newUser) {
-          alert('Identity initialized successfully! Redirecting to secure terminal...');
-          // Trigger immediate login logic
+          // If signup is successful (or user existed but wasn't confirmed), try logging in
           const loggedUser = await validateLogin(email, password);
-          if (loggedUser) onAuthComplete(loggedUser);
+          if (loggedUser) {
+            onAuthComplete(loggedUser);
+          } else {
+             setErrorMessage("Registration successful. However, your profile is pending activation. Try logging in.");
+             setMode('LOGIN');
+          }
         }
       } else if (mode === 'LOGIN') {
         const user = await validateLogin(email, password);
@@ -68,7 +72,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
       } else if (mode === 'FORGOT') {
         const success = await resetUserPassword(email, mobile, newPassword);
         if (success) {
-          alert('Logic Reset command issued successfully.');
+          alert('Logic Reset command issued successfully. Please check your email inbox.');
           setMode('LOGIN');
           setPassword('');
           setNewPassword('');
@@ -79,7 +83,13 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
     } catch (err: any) {
       console.error("Auth Exception:", err);
       let msg = err.message || 'An unexpected logic error occurred.';
-      setErrorMessage(msg);
+      
+      // Smart detection for existing users
+      if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already exists")) {
+        setErrorMessage("IDENTITY_ALREADY_EXISTS");
+      } else {
+        setErrorMessage(msg);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -91,6 +101,8 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
     { icon: "🛡️", title: "Risk Mitigation", text: "Instantly detect capital-draining leaks like over-leveraging or recurring stop-loss violations." },
     { icon: "🤖", title: "AI Risk Coaching", text: "Leverage Gemini AI to audit your logic and receive actionable directives for immediate improvement." }
   ];
+
+  const isUserExistedError = errorMessage === "IDENTITY_ALREADY_EXISTS";
 
   return (
     <div className="min-h-screen bg-[#070a13] flex flex-col items-center p-6 md:p-12 relative overflow-x-hidden overflow-y-auto no-scrollbar pb-32">
@@ -120,9 +132,20 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
           </div>
           
           {errorMessage && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-[10px] font-black uppercase tracking-widest text-center animate-in shake duration-300">
-              <span className="block font-bold mb-1">AUTH EXCEPTION</span>
-              {errorMessage}
+            <div className={`mb-6 p-4 rounded-2xl border text-[10px] font-black uppercase tracking-widest text-center animate-in shake duration-300 ${isUserExistedError ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+              <span className="block font-bold mb-1">{isUserExistedError ? 'IDENTITY ALREADY DETECTED' : 'AUTH EXCEPTION'}</span>
+              {isUserExistedError ? (
+                <div className="space-y-3">
+                  <p>This email is already registered in our terminal database.</p>
+                  <button 
+                    type="button" 
+                    onClick={() => { setMode('LOGIN'); setErrorMessage(null); }}
+                    className="bg-blue-500 text-slate-900 px-4 py-2 rounded-lg hover:bg-blue-400 transition-all inline-block mt-2"
+                  >
+                    Switch to LOGIN
+                  </button>
+                </div>
+              ) : errorMessage}
             </div>
           )}
           

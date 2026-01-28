@@ -1,12 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
-import { Trade, User, UserRole, UserStatus, PlanType } from './types';
+import { Trade, User, UserRole, UserStatus } from './types';
 import { 
   getStoredTrades, 
   saveTrade,
   deleteTradeFromDB,
   exportTradesToCSV, 
   getCurrentUser, 
-  setCurrentUser
+  setCurrentUser,
+  fetchAndSyncProfile,
+  updateUserStatus
 } from './services/storageService';
 import { supabase } from './services/supabaseClient';
 
@@ -37,19 +40,10 @@ const App: React.FC = () => {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
-          const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+          const profile = await fetchAndSyncProfile(session.user);
           if (profile) {
-            const mapped: User = { 
-              ...profile, 
-              displayId: profile.display_id, 
-              joinedAt: profile.joined_at, 
-              isPaid: profile.is_paid, 
-              selectedPlan: profile.selected_plan, 
-              ownReferralCode: profile.own_referral_code, 
-              expiryDate: profile.expiry_date 
-            };
-            setAuthUser(mapped);
-            setCurrentUser(mapped);
+            setAuthUser(profile);
+            setCurrentUser(profile);
           }
         }
       } catch (err) {
@@ -61,22 +55,12 @@ const App: React.FC = () => {
 
     initTerminal();
 
-    // Listen for auth changes globally
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
+        const profile = await fetchAndSyncProfile(session.user);
         if (profile) {
-          const mapped: User = { 
-            ...profile, 
-            displayId: profile.display_id, 
-            joinedAt: profile.joined_at, 
-            isPaid: profile.is_paid, 
-            selectedPlan: profile.selected_plan, 
-            ownReferralCode: profile.own_referral_code, 
-            expiryDate: profile.expiry_date 
-          };
-          setAuthUser(mapped);
-          setCurrentUser(mapped);
+          setAuthUser(profile);
+          setCurrentUser(profile);
         }
       } else if (event === 'SIGNED_OUT') {
         setAuthUser(null);
@@ -89,10 +73,11 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // Access is granted if user is logged in
     if (currentUser) {
       loadTrades();
     }
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
   const loadTrades = async () => {
     if (!currentUser) return;
@@ -158,6 +143,11 @@ const App: React.FC = () => {
     }
   };
 
+  const onAuthSuccess = (user: User) => {
+    setAuthUser(user);
+    setCurrentUser(user);
+  };
+
   if (isInitializing) {
     return (
       <div className="min-h-screen bg-[#070a13] flex flex-col items-center justify-center p-6 gap-6">
@@ -168,7 +158,7 @@ const App: React.FC = () => {
   }
 
   if (!currentUser) {
-    return <AuthView onAuthComplete={(user) => { setAuthUser(user); setCurrentUser(user); }} />;
+    return <AuthView onAuthComplete={onAuthSuccess} />;
   }
 
   const renderContent = () => {
