@@ -4,7 +4,7 @@ import { supabase } from "./supabaseClient";
 
 /**
  * TradeMind AI - Storage Service
- * High-performance data synchronization for professional traders.
+ * Professional-grade data synchronization for institutional-level journaling.
  */
 
 const SESSION_KEY = 'trademind_session';
@@ -72,83 +72,104 @@ export const resetUserPassword = async (email: string, mobile: string, newPasswo
   return true;
 };
 
+/**
+ * Ensures a profile exists in the DB. If missing, it force-creates it.
+ */
+export const ensureProfileExists = async (userId: string, email: string, name?: string): Promise<void> => {
+  if (!userId) throw new Error("User ID is required for profile verification.");
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error("Profile check error:", fetchError);
+    throw new Error(`Profile access denied: ${fetchError.message}`);
+  }
+
+  if (!existing) {
+    const displayId = `TM-${userId.substring(0, 8).toUpperCase()}`;
+    const payload = {
+      id: userId,
+      email: email,
+      name: name || 'Trader',
+      display_id: displayId,
+      status: 'APPROVED',
+      is_paid: true,
+      role: 'USER'
+    };
+
+    const { error: insertError } = await supabase
+      .from('profiles')
+      .insert([payload]);
+      
+    if (insertError && !insertError.message.includes("duplicate key")) {
+         console.error("Critical Profile Creation Failure:", insertError.message);
+         throw new Error(`Profile initialization failed: ${insertError.message}`);
+    }
+  }
+};
+
 export const fetchAndSyncProfile = async (supabaseUser: any): Promise<User | null> => {
   if (!supabaseUser) return null;
 
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', supabaseUser.id)
-    .single();
+  try {
+    await ensureProfileExists(supabaseUser.id, supabaseUser.email!, supabaseUser.user_metadata?.name);
 
-  if (error || !profile) {
-    // Automatically approve and mark as paid for open terminal access
-    const fallbackUser: User = {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', supabaseUser.id)
+      .maybeSingle();
+
+    if (error || !profile) {
+      throw new Error(error?.message || "Profile record not found.");
+    }
+
+    return {
+      ...profile,
+      displayId: profile.display_id,
+      joinedAt: profile.joined_at,
+      isPaid: profile.is_paid,
+      selectedPlan: profile.selected_plan as PlanType,
+      status: profile.status as UserStatus,
+      role: profile.role as UserRole,
+      ownReferralCode: profile.own_referral_code || ''
+    };
+  } catch (err: any) {
+    console.error("Sync Profile Error:", err);
+    return {
       id: supabaseUser.id,
       email: supabaseUser.email!,
       name: supabaseUser.user_metadata?.name || 'Trader',
-      displayId: `TM-${supabaseUser.id.substring(0, 5).toUpperCase()}`,
+      displayId: `TM-${supabaseUser.id.substring(0, 8).toUpperCase()}`,
       status: UserStatus.APPROVED, 
       isPaid: true,
       role: UserRole.USER,
       joinedAt: new Date().toISOString(),
       ownReferralCode: ''
     };
-
-    const dbPayload = {
-      id: fallbackUser.id,
-      email: fallbackUser.email,
-      name: fallbackUser.name,
-      display_id: fallbackUser.displayId,
-      status: fallbackUser.status,
-      is_paid: fallbackUser.isPaid
-    };
-
-    try {
-      const { data: inserted } = await supabase.from('profiles').upsert([dbPayload]).select().single();
-      if (inserted) {
-        return {
-          ...fallbackUser,
-          id: inserted.id,
-          displayId: inserted.display_id,
-          joinedAt: inserted.joined_at,
-          isPaid: true, // Force true to ignore DB delay
-          status: UserStatus.APPROVED,
-          role: inserted.role as UserRole
-        };
-      }
-    } catch (err) {
-      console.warn("Profile DB sync failed, using terminal fallback:", err);
-    }
-    
-    return fallbackUser;
   }
-
-  return {
-    ...profile,
-    displayId: profile.display_id,
-    joinedAt: profile.joined_at,
-    isPaid: true, // Always treat authenticated users as Pro
-    selectedPlan: profile.selected_plan as PlanType,
-    status: UserStatus.APPROVED,
-    role: profile.role as UserRole,
-    ownReferralCode: profile.own_referral_code || ''
-  };
 };
 
 export const calculateGrossPnL = (trade: Trade): number => {
   if (trade.status === TradeStatus.OPEN || trade.exitPrice === undefined) return 0;
-  return (trade.exitPrice - trade.entryPrice) * trade.quantity * (trade.side === TradeSide.LONG ? 1 : -1);
+  return (Number(trade.exitPrice) - Number(trade.entryPrice)) * Number(trade.quantity) * (trade.side === TradeSide.LONG ? 1 : -1);
 };
 
-export const calculatePnL = (trade: Trade): number => calculateGrossPnL(trade) - trade.fees;
+export const calculatePnL = (trade: Trade): number => calculateGrossPnL(trade) - Number(trade.fees);
 
 export const getStoredTrades = async (userId?: string): Promise<Trade[]> => {
   let query = supabase.from('trades').select('*');
   if (userId) query = query.eq('user_id', userId);
   
   const { data, error } = await query.order('entry_date', { ascending: false });
-  if (error) return [];
+  if (error) {
+    console.error("Fetch Trades Error:", error);
+    return [];
+  }
 
   return (data || []).map(t => ({
     id: t.id,
@@ -169,11 +190,18 @@ export const getStoredTrades = async (userId?: string): Promise<Trade[]> => {
     mistakes: t.mistakes || [],
     attachments: t.attachments || [],
     aiReview: t.ai_review,
-    optionDetails: t.option_details
+    optionDetails: t.option_details,
+    tags: t.tags || []
   }));
 };
 
 export const saveTrade = async (trade: Trade): Promise<void> => {
+  const user = getCurrentUser();
+  if (!user) throw new Error("No active session detected.");
+
+  await ensureProfileExists(user.id, user.email, user.name);
+
+  // Payload specifically mapped to match schema.sql exactly
   const payload = {
     id: trade.id,
     user_id: trade.userId,
@@ -181,26 +209,27 @@ export const saveTrade = async (trade: Trade): Promise<void> => {
     trade_type: trade.type,
     side: trade.side,
     status: trade.status,
-    entry_price: trade.entryPrice,
-    exit_price: trade.exitPrice ?? null,
-    quantity: trade.quantity,
+    entry_price: Number(trade.entryPrice),
+    exit_price: trade.exitPrice !== undefined ? Number(trade.exitPrice) : null,
+    quantity: Number(trade.quantity),
     entry_date: trade.entryDate,
-    exit_date: trade.exitDate ?? null,
-    fees: trade.fees,
-    notes: trade.notes,
-    strategies: trade.strategies,
-    emotions: trade.emotions,
-    mistakes: trade.mistakes,
-    attachments: trade.attachments ?? [],
-    ai_review: trade.aiReview ?? null,
-    // Fix: Corrected property name from snake_case option_details to camelCase optionDetails to match the Trade interface
-    option_details: trade.optionDetails ?? null
+    exit_date: trade.exitDate || null,
+    fees: Number(trade.fees || 0),
+    notes: trade.notes || '',
+    tags: trade.tags || [],
+    strategies: trade.strategies || [],
+    emotions: trade.emotions || [],
+    mistakes: trade.mistakes || [],
+    attachments: trade.attachments || [],
+    ai_review: trade.aiReview || null,
+    option_details: trade.optionDetails || null
   };
 
   const { error } = await supabase.from('trades').upsert([payload]);
+  
   if (error) {
-    console.error("Supabase Save Error:", error.message, error.details);
-    throw error;
+    console.error("Trade Save Failure:", error.message, error.details);
+    throw new Error(`Cloud Sync Failed: ${error.message}`);
   }
 };
 
@@ -229,19 +258,26 @@ export const getRegisteredUsers = async (): Promise<User[]> => {
   }));
 };
 
+// Fix: Implementation of saveUsers for bulk profile synchronization with Supabase
 export const saveUsers = async (users: User[]): Promise<void> => {
-  for (const user of users) {
-    const payload = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      display_id: user.displayId,
-      is_paid: user.isPaid,
-      role: user.role,
-      status: user.status,
-      joined_at: user.joinedAt
-    };
-    await supabase.from('profiles').upsert([payload]);
+  const payloads = users.map(user => ({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    mobile: user.mobile,
+    display_id: user.displayId,
+    status: user.status,
+    is_paid: user.isPaid,
+    role: user.role,
+    joined_at: user.joinedAt,
+    own_referral_code: user.ownReferralCode,
+    selected_plan: user.selectedPlan
+  }));
+
+  const { error } = await supabase.from('profiles').upsert(payloads);
+  if (error) {
+    console.error("User Sync Failure:", error.message);
+    throw new Error(`Cloud User Sync Failed: ${error.message}`);
   }
 };
 
