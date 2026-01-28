@@ -127,7 +127,7 @@ const App: React.FC = () => {
   }
 
   const navigationItems = [
-    { id: 'dashboard', label: 'Perf' },
+    { id: 'dashboard', label: 'Dashboard' },
     { id: 'journal', label: 'Trades' },
     { id: 'analysis', label: 'Edge' },
     { id: 'mistakes', label: 'Leaks' },
