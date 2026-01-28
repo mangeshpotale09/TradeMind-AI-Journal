@@ -1,14 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
-import { Trade, User, UserRole, UserStatus } from './types';
+import { Trade, User, UserRole, UserStatus, PlanType } from './types';
 import { 
   getStoredTrades, 
   saveTrade,
   deleteTradeFromDB,
   exportTradesToCSV, 
   getCurrentUser, 
-  setCurrentUser,
-  logoutUser
+  setCurrentUser
 } from './services/storageService';
 import { supabase } from './services/supabaseClient';
 
@@ -22,10 +20,7 @@ import EmotionsView from './components/EmotionsView';
 import AIInsightsView from './components/AIInsightsView';
 import AdminView from './components/AdminView';
 import AuthView from './components/AuthView';
-import PaymentView from './components/PaymentView';
-import UserVerificationStatus from './components/UserVerificationStatus';
 
-// Main Application Component
 const App: React.FC = () => {
   const [currentUser, setAuthUser] = useState<User | null>(getCurrentUser());
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -36,79 +31,63 @@ const App: React.FC = () => {
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
 
-  // Initialize Supabase Auth session on startup
   useEffect(() => {
-    const initSession = async () => {
+    const initTerminal = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
+          const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
           if (profile) {
-            const mappedUser: User = {
-              ...profile,
-              displayId: profile.display_id,
-              joinedAt: profile.joined_at,
-              isPaid: profile.is_paid,
-              selectedPlan: profile.selected_plan,
-              ownReferralCode: profile.own_referral_code,
-              expiryDate: profile.expiry_date,
-              amountPaid: profile.amount_paid
+            const mapped: User = { 
+              ...profile, 
+              displayId: profile.display_id, 
+              joinedAt: profile.joined_at, 
+              isPaid: profile.is_paid, 
+              selectedPlan: profile.selected_plan, 
+              ownReferralCode: profile.own_referral_code, 
+              expiryDate: profile.expiry_date 
             };
-            setAuthUser(mappedUser);
-            setCurrentUser(mappedUser);
+            setAuthUser(mapped);
+            setCurrentUser(mapped);
           }
         }
       } catch (err) {
-        console.error("Session initialization failed:", err);
+        console.error("Terminal sync failed:", err);
       } finally {
         setIsInitializing(false);
       }
     };
 
-    initSession();
+    initTerminal();
 
-    // Listen for real-time auth changes
+    // Listen for auth changes globally
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_IN' && session?.user) {
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        if (profile) {
+          const mapped: User = { 
+            ...profile, 
+            displayId: profile.display_id, 
+            joinedAt: profile.joined_at, 
+            isPaid: profile.is_paid, 
+            selectedPlan: profile.selected_plan, 
+            ownReferralCode: profile.own_referral_code, 
+            expiryDate: profile.expiry_date 
+          };
+          setAuthUser(mapped);
+          setCurrentUser(mapped);
+        }
+      } else if (event === 'SIGNED_OUT') {
         setAuthUser(null);
         setCurrentUser(null);
         setTrades([]);
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        if (session?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (profile) {
-            const mappedUser: User = {
-              ...profile,
-              displayId: profile.display_id,
-              joinedAt: profile.joined_at,
-              isPaid: profile.is_paid,
-              selectedPlan: profile.selected_plan,
-              ownReferralCode: profile.own_referral_code,
-              expiryDate: profile.expiry_date,
-              amountPaid: profile.amount_paid
-            };
-            setAuthUser(mappedUser);
-            setCurrentUser(mappedUser);
-          }
-        }
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Sync trades when user changes
   useEffect(() => {
     if (currentUser) {
       loadTrades();
@@ -119,83 +98,77 @@ const App: React.FC = () => {
     if (!currentUser) return;
     setIsLoading(true);
     try {
-      const tradesToLoad = currentUser.role === UserRole.ADMIN 
-        ? await getStoredTrades() 
-        : await getStoredTrades(currentUser.id);
+      const tradesToLoad = await getStoredTrades(currentUser.id);
       setTrades(tradesToLoad);
     } catch (err) {
-      console.error("Failed to load trades:", err);
+      console.error("Failed to load trades from Supabase:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAuthComplete = (user: User) => {
-    setAuthUser(user);
-    setCurrentUser(user);
-  };
-
   const handleLogout = async () => {
-    await logoutUser();
+    if (window.confirm("Sign out from secure terminal?")) {
+      await supabase.auth.signOut();
+      localStorage.clear();
+      window.location.reload();
+    }
   };
 
   const handleAddTrade = async (trade: Trade) => {
     setIsLoading(true);
-    await saveTrade(trade);
-    await loadTrades();
-    setIsEntryFormOpen(false);
-    setEditingTrade(null);
-    setSelectedTrade(null);
-    setIsLoading(false);
+    try {
+      await saveTrade(trade);
+      await loadTrades();
+      setIsEntryFormOpen(false);
+      setEditingTrade(null);
+      setSelectedTrade(null);
+    } catch (err) {
+      alert("Failed to sync execution to cloud.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUpdateTrade = async (updatedTrade: Trade) => {
     setIsLoading(true);
-    await saveTrade(updatedTrade);
-    await loadTrades();
-    if (selectedTrade?.id === updatedTrade.id) {
-      setSelectedTrade(updatedTrade);
+    try {
+      await saveTrade(updatedTrade);
+      await loadTrades();
+      if (selectedTrade?.id === updatedTrade.id) {
+        setSelectedTrade(updatedTrade);
+      }
+    } catch (err) {
+      alert("Update synchronization failed.");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleDeleteTrade = async (id: string) => {
     setIsLoading(true);
-    await deleteTradeFromDB(id);
-    await loadTrades();
-    setSelectedTrade(null);
-    setIsLoading(false);
+    try {
+      await deleteTradeFromDB(id);
+      await loadTrades();
+      setSelectedTrade(null);
+    } catch (err) {
+      alert("Failed to purge record from cloud.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isInitializing) {
     return (
       <div className="min-h-screen bg-[#070a13] flex flex-col items-center justify-center p-6 gap-6">
         <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Initializing Secure Terminal Session...</p>
+        <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Initializing Secure Protocol...</p>
       </div>
     );
   }
 
   if (!currentUser) {
-    return <AuthView onAuthComplete={handleAuthComplete} />;
-  }
-
-  // Handle billing/verification flow
-  if (currentUser.role !== UserRole.ADMIN && currentUser.status === UserStatus.PENDING) {
-    return <PaymentView user={currentUser} onPaymentSubmitted={loadTrades} />;
-  }
-
-  if (currentUser.role !== UserRole.ADMIN && (currentUser.status === UserStatus.WAITING_APPROVAL || currentUser.status === UserStatus.REJECTED)) {
-    return (
-      <UserVerificationStatus 
-        user={currentUser} 
-        onLogout={handleLogout} 
-        onRetry={() => {
-          const updated = { ...currentUser, status: UserStatus.PENDING };
-          setAuthUser(updated);
-        }} 
-      />
-    );
+    return <AuthView onAuthComplete={(user) => { setAuthUser(user); setCurrentUser(user); }} />;
   }
 
   const renderContent = () => {
@@ -203,28 +176,20 @@ const App: React.FC = () => {
       return (
         <div className="flex flex-col items-center justify-center py-40 gap-4">
           <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Synchronizing Terminal Data...</p>
+          <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Scanning Global Tape...</p>
         </div>
       );
     }
 
     switch (activeTab) {
-      case 'dashboard':
-        return <Dashboard trades={trades} onExport={() => exportTradesToCSV(trades)} />;
-      case 'journal':
-        return <TradeList trades={trades} onSelect={setSelectedTrade} isAdmin={currentUser.role === UserRole.ADMIN} />;
-      case 'analysis':
-        return <AnalysisView trades={trades} />;
-      case 'mistakes':
-        return <MistakesView trades={trades} />;
-      case 'emotions':
-        return <EmotionsView trades={trades} />;
-      case 'ai':
-        return <AIInsightsView trades={trades} />;
-      case 'admin':
-        return currentUser.role === UserRole.ADMIN ? <AdminView onLogout={handleLogout} /> : <Dashboard trades={trades} />;
-      default:
-        return <Dashboard trades={trades} />;
+      case 'dashboard': return <Dashboard trades={trades} onExport={() => exportTradesToCSV(trades)} />;
+      case 'journal': return <TradeList trades={trades} onSelect={setSelectedTrade} isAdmin={currentUser.role === UserRole.ADMIN} />;
+      case 'analysis': return <AnalysisView trades={trades} />;
+      case 'mistakes': return <MistakesView trades={trades} />;
+      case 'emotions': return <EmotionsView trades={trades} />;
+      case 'ai': return <AIInsightsView trades={trades} />;
+      case 'admin': return <AdminView onLogout={handleLogout} />;
+      default: return <Dashboard trades={trades} />;
     }
   };
 
@@ -243,7 +208,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#070a13] text-slate-200 font-sans selection:bg-emerald-500/30">
-      {/* Sidebar / Navigation */}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0e1421]/80 backdrop-blur-xl border border-[#1e293b] p-2 rounded-3xl shadow-2xl flex items-center gap-1 md:gap-2">
         {navigationItems.map((tab) => (
           <button
@@ -256,45 +220,37 @@ const App: React.FC = () => {
           </button>
         ))}
         <div className="w-px h-6 bg-[#1e293b] mx-1"></div>
-        <button onClick={handleLogout} className="p-3 text-red-500 hover:bg-red-500/10 rounded-2xl transition-all" title="Logout">
+        <button onClick={handleLogout} className="p-3 text-red-500 hover:bg-red-500/10 rounded-2xl transition-all" title="Sign Out">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
         </button>
       </nav>
 
-      {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-6 pt-12 pb-32">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div>
             <div className="flex items-center gap-3 mb-1">
                <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-black px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">{currentUser.displayId}</span>
-               {currentUser.role === UserRole.ADMIN && (
-                 <span className="bg-purple-500/10 text-purple-400 text-[10px] font-black px-2 py-0.5 rounded border border-purple-500/20 uppercase tracking-widest">Admin Console</span>
-               )}
-               <span className={`text-[10px] font-black px-2 py-0.5 rounded border border-emerald-500/20 bg-emerald-500/10 text-emerald-500 uppercase tracking-widest flex items-center gap-1.5`}>
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                  Supabase Live
+               <span className="text-[10px] font-black px-2 py-0.5 rounded border border-emerald-500/20 bg-emerald-500/10 text-emerald-500 uppercase tracking-widest flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                  Secure Node
                </span>
             </div>
             <h1 className="text-4xl font-black text-white tracking-tighter">
-              {currentUser.name.split(' ')[0]}'s <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">Terminal</span>
+              TradeMind <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">Terminal</span>
             </h1>
           </div>
           
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsEntryFormOpen(true)}
-              className="group relative inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black px-8 py-4 rounded-2xl transition-all shadow-2xl shadow-emerald-500/20 active:scale-95"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
-              <span className="text-xs uppercase tracking-[0.2em]">Log Execution</span>
-            </button>
-          </div>
+          <button 
+            onClick={() => setIsEntryFormOpen(true)}
+            className="group relative inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black px-8 py-4 rounded-2xl transition-all shadow-2xl shadow-emerald-500/20 active:scale-95"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
+            <span className="text-xs uppercase tracking-[0.2em]">Log Execution</span>
+          </button>
         </header>
-
         {renderContent()}
       </main>
 
-      {/* Modals */}
       {isEntryFormOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
           <TradeEntryForm 

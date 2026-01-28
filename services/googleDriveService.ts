@@ -34,6 +34,7 @@ export const initializeGoogleSync = (): Promise<void> => {
 
     gapi.load("client", async () => {
       try {
+        // Correct initialization using API key from process.env
         await gapi.client.init({
           apiKey: process.env.API_KEY,
           discoveryDocs: [DISCOVERY_DOC],
@@ -92,9 +93,10 @@ export const authenticateCloud = (): Promise<string> => {
 export const syncToCloud = async (): Promise<boolean> => {
   try {
     const gapi = (window as any).gapi;
+    // Corrected: Awaiting the data fetching
     const data = {
-      users: getRegisteredUsers(),
-      trades: getStoredTrades(),
+      users: await getRegisteredUsers(),
+      trades: await getStoredTrades(),
       syncedAt: new Date().toISOString(),
       device: navigator.userAgent
     };
@@ -170,8 +172,9 @@ export const restoreFromCloud = async (): Promise<boolean> => {
     const data = typeof fileData.result === 'string' ? JSON.parse(fileData.result) : fileData.result;
     
     if (data.users && data.trades) {
-      saveUsers(data.users);
-      saveTrades(data.trades);
+      // Corrected: Awaiting the save operations
+      await saveUsers(data.users);
+      await saveTrades(data.trades);
       localStorage.setItem('tm_last_cloud_sync', file.modifiedTime || new Date().toISOString());
       return true;
     }

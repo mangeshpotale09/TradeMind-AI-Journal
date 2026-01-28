@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { User, UserRole, UserStatus, PlanType } from '../types';
 import { setCurrentUser, registerUser, validateLogin, resetUserPassword } from '../services/storageService';
@@ -7,13 +8,12 @@ interface AuthViewProps {
 }
 
 const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
-  const [mode, setMode] = useState<'LOGIN' | 'REGISTER' | 'ADMIN' | 'FORGOT'>('LOGIN');
+  const [mode, setMode] = useState<'LOGIN' | 'REGISTER' | 'FORGOT'>('LOGIN');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [name, setName] = useState('');
   const [mobile, setMobile] = useState('');
-  const [selectedPlan, setSelectedPlan] = useState<PlanType>(PlanType.ANNUAL);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -53,20 +53,16 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
     
     try {
       if (mode === 'REGISTER') {
-        const newUser = await registerUser({ email, password, name, mobile, selectedPlan });
+        const newUser = await registerUser({ email, password, name, mobile });
         if (newUser) {
-          alert('Identity initialized successfully! You can now log in.');
-          setMode('LOGIN');
-          setPassword('');
+          alert('Identity initialized successfully! Redirecting to secure terminal...');
+          // Trigger immediate login logic
+          const loggedUser = await validateLogin(email, password);
+          if (loggedUser) onAuthComplete(loggedUser);
         }
-      } else if (mode === 'LOGIN' || mode === 'ADMIN') {
+      } else if (mode === 'LOGIN') {
         const user = await validateLogin(email, password);
         if (user) {
-          if (mode === 'ADMIN' && user.role !== UserRole.ADMIN) {
-            setErrorMessage('Access Denied: You do not have administrator privileges.');
-            setIsSubmitting(false);
-            return;
-          }
           onAuthComplete(user);
         }
       } else if (mode === 'FORGOT') {
@@ -77,35 +73,22 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
           setPassword('');
           setNewPassword('');
         } else {
-          setErrorMessage('Verification Error: No record found with this email/mobile.');
+          setErrorMessage('Verification Error: No matching profile found with this Email/Mobile combo.');
         }
       }
     } catch (err: any) {
       console.error("Auth Exception:", err);
       let msg = err.message || 'An unexpected logic error occurred.';
-      
-      // Handle Supabase specific network errors or key issues
-      if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('unexpected error')) {
-        msg = "Terminal Connection Failure: Please check your internet or Supabase configuration.";
-      }
-
       setErrorMessage(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const plans = [
-    { type: PlanType.MONTHLY, price: 299, duration: "1 Month" },
-    { type: PlanType.SIX_MONTHS, price: 599, duration: "6 Months" },
-    { type: PlanType.ANNUAL, price: 999, duration: "1 Year" }
-  ];
-
   const benefits = [
     { icon: "📈", title: "Execution Discipline", text: "Transform impulsive gambling into systematic, rule-based execution through rigorous post-trade logging." },
     { icon: "📊", title: "Edge Identification", text: "Pinpoint high-probability setups by isolating the strategies that generate your highest profit factors." },
     { icon: "🛡️", title: "Risk Mitigation", text: "Instantly detect capital-draining leaks like over-leveraging or recurring stop-loss violations." },
-    { icon: "🧠", title: "Emotional Intelligence", text: "Correlate your mental states (Fear, Greed, FOMO) with actual P&L to build psychological resilience." },
     { icon: "🤖", title: "AI Risk Coaching", text: "Leverage Gemini AI to audit your logic and receive actionable directives for immediate improvement." }
   ];
 
@@ -117,51 +100,38 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
       <div className="w-full max-w-lg relative z-10 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-700 mt-8">
         
         <div className="flex flex-col items-center text-center mb-10">
-          <div className={`w-20 h-20 rounded-[2.5rem] flex items-center justify-center font-black text-4xl shadow-2xl transition-all duration-500 ${mode === 'ADMIN' ? 'bg-purple-600 text-white shadow-purple-500/20' : (mode === 'FORGOT' ? 'bg-blue-600 text-white shadow-blue-500/20' : 'bg-emerald-500 text-slate-900 shadow-emerald-500/20')}`}>
-            {mode === 'ADMIN' ? 'A' : (mode === 'FORGOT' ? '?' : 'T')}
+          <div className={`w-20 h-20 rounded-[2.5rem] flex items-center justify-center font-black text-4xl shadow-2xl transition-all duration-500 ${mode === 'FORGOT' ? 'bg-blue-600 text-white shadow-blue-500/20' : 'bg-emerald-500 text-slate-900 shadow-emerald-500/20'}`}>
+            {mode === 'FORGOT' ? '?' : 'T'}
           </div>
           <h1 className="text-4xl font-black text-white tracking-tighter mt-6">
-            TradeMind <span className={mode === 'ADMIN' ? 'text-purple-400' : (mode === 'FORGOT' ? 'text-blue-400' : 'text-emerald-500')}>{mode === 'ADMIN' ? 'Admin' : (mode === 'FORGOT' ? 'Reset' : 'AI')}</span>
+            TradeMind <span className={mode === 'FORGOT' ? 'text-blue-400' : 'text-emerald-500'}>{mode === 'FORGOT' ? 'Reset' : 'AI'}</span>
           </h1>
           <p className="text-slate-500 text-[10px] mt-2 font-black uppercase tracking-[0.3em]">
             Institutional Logic Terminal
           </p>
         </div>
 
-        <div className={`w-full p-8 md:p-10 rounded-[3rem] border shadow-2xl transition-all duration-500 ${mode === 'ADMIN' ? 'bg-[#1a0b2e]/90 border-purple-500/30' : (mode === 'FORGOT' ? 'bg-[#0b142e]/90 border-blue-500/30' : 'bg-[#0e1421]/90 border-[#1e293b]')}`}>
+        <div className={`w-full p-8 md:p-10 rounded-[3rem] border shadow-2xl transition-all duration-500 ${mode === 'FORGOT' ? 'bg-[#0b142e]/90 border-blue-500/30' : 'bg-[#0e1421]/90 border-[#1e293b]'}`}>
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-black text-white mb-2 tracking-tight">
-              {mode === 'REGISTER' ? 'Initialize Identity' : mode === 'ADMIN' ? 'Secure Login' : mode === 'FORGOT' ? 'Reset Logic' : 'Welcome Back'}
+              {mode === 'REGISTER' ? 'Initialize Identity' : mode === 'FORGOT' ? 'Reset Logic' : 'Welcome Back'}
             </h2>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{mode === 'REGISTER' ? 'Start your discipline journey' : 'Synchronizing local tape...'}</p>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{mode === 'REGISTER' ? 'Instant Access granted upon setup' : 'Synchronizing local tape...'}</p>
           </div>
           
           {errorMessage && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-[10px] font-black uppercase tracking-widest text-center animate-in shake duration-300">
-              <span className="block font-bold mb-1">ACCESS ERROR</span>
+              <span className="block font-bold mb-1">AUTH EXCEPTION</span>
               {errorMessage}
             </div>
           )}
           
           <form onSubmit={handleSubmit} className="space-y-5">
             {mode === 'REGISTER' && (
-              <>
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Identity Name</label>
-                  <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-[#070a13] border border-[#1e293b] rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-bold transition-all text-sm" placeholder="John Doe" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Select Tier</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {plans.map(p => (
-                      <button key={p.type} type="button" onClick={() => setSelectedPlan(p.type)} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${selectedPlan === p.type ? 'bg-emerald-500 border-emerald-400 text-slate-900 shadow-lg' : 'bg-[#070a13] border-[#1e293b] text-slate-500 hover:border-slate-400'}`}>
-                        <span className="text-[8px] font-black uppercase tracking-tighter">{p.duration}</span>
-                        <span className="text-xs font-black">₹{p.price}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Identity Name</label>
+                <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-[#070a13] border border-[#1e293b] rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-bold transition-all text-sm" placeholder="John Doe" />
+              </div>
             )}
             
             <div className="space-y-1.5">
@@ -190,17 +160,17 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
               </div>
             )}
             
-            <button type="submit" disabled={isSubmitting} className={`w-full font-black py-4 rounded-2xl transition-all shadow-xl flex items-center justify-center gap-3 text-xs uppercase tracking-[0.2em] mt-4 ${mode === 'ADMIN' ? 'bg-purple-600 hover:bg-purple-500 text-white' : (mode === 'FORGOT' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-900')} disabled:opacity-50`}>
-              {isSubmitting ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div> : (mode === 'REGISTER' ? 'Initialize' : mode === 'FORGOT' ? 'Reset' : 'Enter')}
+            <button type="submit" disabled={isSubmitting} className={`w-full font-black py-4 rounded-2xl transition-all shadow-xl flex items-center justify-center gap-3 text-xs uppercase tracking-[0.2em] mt-4 ${mode === 'FORGOT' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-900'} disabled:opacity-50`}>
+              {isSubmitting ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div> : (mode === 'REGISTER' ? 'Initialize & Enter' : mode === 'FORGOT' ? 'Reset' : 'Enter')}
             </button>
           </form>
 
-          <div className="mt-8 pt-8 border-t border-[#1e293b] grid grid-cols-2 gap-4">
-            <button onClick={() => { setMode(mode === 'REGISTER' ? 'LOGIN' : 'REGISTER'); setErrorMessage(null); }} className="py-3 rounded-xl border border-[#1e293b] text-[9px] font-black uppercase tracking-widest text-slate-400 hover:bg-white/5 transition-all">
-              {mode === 'REGISTER' ? 'Back to Login' : 'Create Identity'}
-            </button>
-            <button onClick={() => { setMode(mode === 'ADMIN' ? 'LOGIN' : 'ADMIN'); setErrorMessage(null); }} className={`py-3 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all ${mode === 'ADMIN' ? 'border-emerald-500/30 text-emerald-400' : 'border-purple-500/30 text-purple-400'}`}>
-              {mode === 'ADMIN' ? 'Switch to User' : 'Admin Terminal'}
+          <div className="mt-8 pt-8 border-t border-[#1e293b]">
+            <button 
+              onClick={() => { setMode(mode === 'REGISTER' ? 'LOGIN' : 'REGISTER'); setErrorMessage(null); }} 
+              className="w-full py-4 rounded-2xl border border-[#1e293b] text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-white/5 transition-all shadow-sm"
+            >
+              {mode === 'REGISTER' ? 'Already have an Identity? Login' : 'New to TradeMind? Create Identity'}
             </button>
           </div>
         </div>
