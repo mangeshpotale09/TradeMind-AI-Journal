@@ -121,10 +121,25 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#070a13] flex flex-col items-center justify-center p-6 gap-6">
         <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Initializing Secure Terminal...</p>
+        <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Booting Secure Terminal...</p>
       </div>
     );
   }
+
+  const navigationItems = [
+    { id: 'dashboard', label: 'Perf' },
+    { id: 'journal', label: 'Trades' },
+    { id: 'analysis', label: 'Edge' },
+    { id: 'mistakes', label: 'Leaks' },
+    { id: 'emotions', label: 'Mind' },
+    { id: 'ai', label: 'Coach' }
+  ];
+
+  if (currentUser.role === UserRole.ADMIN) {
+    navigationItems.push({ id: 'admin', label: 'Admin' });
+  }
+
+  const activeTabLabel = navigationItems.find(item => item.id === activeTab)?.label || 'Terminal';
 
   const renderContent = () => {
     if (isLoading && trades.length === 0) {
@@ -148,30 +163,16 @@ const App: React.FC = () => {
     }
   };
 
-  const navigationItems = [
-    { id: 'dashboard', label: 'Overview', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
-    { id: 'journal', label: 'Journal', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
-    { id: 'analysis', label: 'Edge', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
-    { id: 'mistakes', label: 'Leaks', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
-    { id: 'emotions', label: 'Mindset', icon: 'M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-    { id: 'ai', label: 'AI Coach', icon: 'M13 10V3L4 14h7v7l9-11h-7z' }
-  ];
-
-  if (currentUser.role === UserRole.ADMIN) {
-    navigationItems.push({ id: 'admin', label: 'Console', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' });
-  }
-
   return (
     <div className="min-h-screen bg-[#070a13] text-slate-200 font-sans selection:bg-emerald-500/30">
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0e1421]/80 backdrop-blur-xl border border-[#1e293b] p-2 rounded-3xl shadow-2xl flex items-center gap-1 md:gap-2">
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0e1421]/90 backdrop-blur-xl border border-[#1e293b] p-1.5 rounded-[2rem] shadow-2xl flex items-center gap-1 md:gap-1.5 max-w-[95vw] overflow-x-auto no-scrollbar">
         {navigationItems.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-4 py-3 rounded-2xl transition-all relative ${activeTab === tab.id ? 'bg-emerald-500 text-slate-900 shadow-lg shadow-emerald-500/20' : 'text-slate-500 hover:text-slate-200'}`}
+            className={`flex items-center justify-center px-4 py-3 rounded-2xl transition-all relative whitespace-nowrap min-w-[70px] ${activeTab === tab.id ? 'bg-emerald-500 text-slate-900 shadow-lg shadow-emerald-500/20' : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'}`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon}></path></svg>
-            <span className="hidden md:block text-[10px] font-black uppercase tracking-widest">{tab.label}</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.2em]">{tab.label}</span>
           </button>
         ))}
       </nav>
@@ -183,7 +184,7 @@ const App: React.FC = () => {
                <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-black px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">{currentUser.displayId}</span>
                <div className="flex items-center gap-2 bg-[#0e1421] px-2 py-0.5 rounded border border-[#1e293b]">
                   <div className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'success' ? 'bg-emerald-500' : cloudStatus === 'error' ? 'bg-red-500' : 'bg-blue-500'}`}></div>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Cloud Sync: {cloudStatus === 'success' ? 'Active' : cloudStatus === 'error' ? 'Failed' : 'Idle'}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{activeTabLabel} Module</span>
                </div>
             </div>
             <h1 className="text-4xl font-black text-white tracking-tighter">

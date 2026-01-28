@@ -48,15 +48,17 @@ const AdminView: React.FC = () => {
     setIsLoading(false);
   };
 
+  const adminTabs = [
+    { id: 'overview', label: 'Executive Stats', icon: 'M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z' },
+    { id: 'ledger', label: 'Revenue Log', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { id: 'registry', label: 'User Directory', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
+  ];
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex bg-[#0a0f1d] p-1 rounded-2xl border border-[#1e293b] overflow-x-auto no-scrollbar items-center">
         <div className="flex-1 flex overflow-x-auto no-scrollbar">
-          {[
-            { id: 'overview', label: 'Console', icon: 'M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z' },
-            { id: 'ledger', label: 'Ledger', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-            { id: 'registry', label: 'Users', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
-          ].map((item) => (
+          {adminTabs.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveSubTab(item.id as AdminTab)}
