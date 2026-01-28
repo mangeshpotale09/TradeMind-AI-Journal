@@ -6,6 +6,10 @@ const USERS_KEY = 'trademind_users';
 const SESSION_KEY = 'trademind_session';
 const TRANSACTIONS_KEY = 'trademind_transactions';
 
+// Security Utility: Simple masking for local storage passwords
+const mask = (str: string) => btoa(str).split('').reverse().join('');
+const unmask = (str: string) => atob(str.split('').reverse().join(''));
+
 const generateReferralCode = (name: string) => {
   const prefix = name.substring(0, 3).toUpperCase();
   const random = Math.floor(100 + Math.random() * 899);
@@ -21,7 +25,7 @@ export const getRegisteredUsers = (): User[] => {
       email: 'potalemangesh09@gmail.com',
       name: 'Mangesh Potale',
       mobile: '8600299477',
-      password: 'Mangesh@123',
+      password: mask('Mangesh@123'),
       isPaid: true,
       role: UserRole.ADMIN,
       status: UserStatus.APPROVED,
@@ -43,7 +47,10 @@ export const saveUsers = (users: User[]) => {
 
 export const getCurrentUser = (): User | null => {
   const data = localStorage.getItem(SESSION_KEY);
-  return data ? JSON.parse(data) : null;
+  if (!data) return null;
+  const user = JSON.parse(data);
+  // Ensure we don't return the masked password to the UI layer
+  return { ...user, password: user.password ? 'PROTECTED' : undefined };
 };
 
 export const setCurrentUser = (user: User | null) => {
@@ -61,7 +68,7 @@ export const registerUser = (user: Partial<User>): User => {
     displayId: `TM-${Math.floor(10000 + Math.random() * 89999)}`,
     email: user.email!,
     name: user.name!,
-    password: user.password!,
+    password: mask(user.password!),
     mobile: user.mobile,
     selectedPlan: user.selectedPlan || PlanType.MONTHLY,
     isPaid: false,
@@ -78,12 +85,20 @@ export const registerUser = (user: Partial<User>): User => {
   return newUser;
 };
 
-// Fix: Add resetUserPassword to allow users to reset their password
+export const validateLogin = (email: string, pass: string): User | null => {
+  const users = getRegisteredUsers();
+  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  if (user && user.password && unmask(user.password) === pass) {
+    return user;
+  }
+  return null;
+};
+
 export const resetUserPassword = (email: string, mobile: string, newPassword: string): boolean => {
   const users = getRegisteredUsers();
   const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.mobile === mobile);
   if (!user) return false;
-  user.password = newPassword;
+  user.password = mask(newPassword);
   saveUsers(users);
   return true;
 };
@@ -169,7 +184,7 @@ export const importFromSyncString = (syncString: string): boolean => {
 
 export const exportMasterDB = () => {
   const masterData = {
-    version: '1.1',
+    version: '1.2',
     exportedAt: new Date().toISOString(),
     users: getRegisteredUsers(),
     trades: getStoredTrades(),

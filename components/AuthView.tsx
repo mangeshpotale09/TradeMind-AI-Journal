@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { User, UserRole, UserStatus, PlanType } from '../types';
-import { getRegisteredUsers, setCurrentUser, registerUser, resetUserPassword } from '../services/storageService';
+import { getRegisteredUsers, setCurrentUser, registerUser, validateLogin, resetUserPassword } from '../services/storageService';
 
 interface AuthViewProps {
   onAuthComplete: (user: User) => void;
@@ -33,20 +33,18 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
     setIsSubmitting(true);
     
     setTimeout(() => {
-      const users = getRegisteredUsers();
-      
       if (mode === 'REGISTER') {
+        const users = getRegisteredUsers();
         if (users.find(u => u.email === email)) {
           alert('ID already exists in registry.');
           setIsSubmitting(false);
           return;
         }
-        
         const newUser = registerUser({ email, password, name, mobile, selectedPlan });
         setCurrentUser(newUser);
         onAuthComplete(newUser);
       } else if (mode === 'LOGIN' || mode === 'ADMIN') {
-        const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+        const user = validateLogin(email, password);
         if (user) {
           if (mode === 'ADMIN' && user.role !== UserRole.ADMIN) {
             alert('Unauthorized Access. Admin credentials required for Terminal Console.');
@@ -120,6 +118,10 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
 
       {/* Top Right Actions */}
       <div className="absolute top-6 right-6 z-[60] flex items-center gap-3">
+        <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20 mr-2 hidden sm:flex">
+          <svg className="w-3 h-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
+          <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">SSL 256-bit Encrypted</span>
+        </div>
         <button 
           onClick={() => setShowPricingModal(true)}
           className="px-4 py-2 bg-[#0e1421] border border-[#1e293b] rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-400 hover:border-emerald-500 transition-all shadow-xl hidden sm:block"

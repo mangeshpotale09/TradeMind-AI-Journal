@@ -39,13 +39,15 @@ export enum PlanType {
 
 export interface Transaction {
   id: string;
+  orderId?: string;
+  signature?: string;
   userId: string;
   userName: string;
   plan: PlanType;
   amount: number;
-  method: 'CARD' | 'WALLET' | 'BANK';
+  method: 'CARD' | 'WALLET' | 'BANK' | 'RAZORPAY';
   timestamp: string;
-  status: 'SUCCESS' | 'PENDING';
+  status: 'SUCCESS' | 'PENDING' | 'FAILED';
 }
 
 export interface User {

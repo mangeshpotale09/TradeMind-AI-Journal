@@ -121,7 +121,8 @@ const App: React.FC = () => {
 
   // Payment required for new users (Admins are always approved)
   if (currentUser.role !== UserRole.ADMIN && currentUser.status === UserStatus.PENDING) {
-    return <PaymentView user={currentUser} onPaymentSubmitted={() => setAuthUser(getCurrentUser())} />;
+    // When payment is finished, force a logout so the user can login with their approved account.
+    return <PaymentView user={currentUser} onPaymentSubmitted={handleLogout} />;
   }
 
   // Verification status gating (Admins are always approved)
