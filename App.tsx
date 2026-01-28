@@ -3,12 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { Trade, User, UserRole, UserStatus } from './types';
 import { 
   getStoredTrades, 
-  saveTrades, 
+  saveTrade,
+  deleteTradeFromDB,
   exportTradesToCSV, 
   getCurrentUser, 
-  setCurrentUser 
+  setCurrentUser,
+  logoutUser
 } from './services/storageService';
-import { checkCloudVaultStatus, initializeGoogleSync } from './services/googleDriveService';
+import { supabase } from './services/supabaseClient';
 
 import Dashboard from './components/Dashboard';
 import TradeList from './components/TradeList';
@@ -27,105 +29,162 @@ import UserVerificationStatus from './components/UserVerificationStatus';
 const App: React.FC = () => {
   const [currentUser, setAuthUser] = useState<User | null>(getCurrentUser());
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'journal' | 'analysis' | 'mistakes' | 'emotions' | 'ai' | 'admin'>('dashboard');
   const [isEntryFormOpen, setIsEntryFormOpen] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
-  const [cloudStatus, setCloudStatus] = useState<'off' | 'active' | 'update'>('off');
+
+  // Initialize Supabase Auth session on startup
+  useEffect(() => {
+    const initSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profile) {
+            const mappedUser: User = {
+              ...profile,
+              displayId: profile.display_id,
+              joinedAt: profile.joined_at,
+              isPaid: profile.is_paid,
+              selectedPlan: profile.selected_plan,
+              ownReferralCode: profile.own_referral_code,
+              expiryDate: profile.expiry_date,
+              amountPaid: profile.amount_paid
+            };
+            setAuthUser(mappedUser);
+            setCurrentUser(mappedUser);
+          }
+        }
+      } catch (err) {
+        console.error("Session initialization failed:", err);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    initSession();
+
+    // Listen for real-time auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setAuthUser(null);
+        setCurrentUser(null);
+        setTrades([]);
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profile) {
+            const mappedUser: User = {
+              ...profile,
+              displayId: profile.display_id,
+              joinedAt: profile.joined_at,
+              isPaid: profile.is_paid,
+              selectedPlan: profile.selected_plan,
+              ownReferralCode: profile.own_referral_code,
+              expiryDate: profile.expiry_date,
+              amountPaid: profile.amount_paid
+            };
+            setAuthUser(mappedUser);
+            setCurrentUser(mappedUser);
+          }
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Sync trades when user changes
   useEffect(() => {
     if (currentUser) {
-      // Admins get all trades, regular users get only their own
-      const tradesToLoad = currentUser.role === UserRole.ADMIN 
-        ? getStoredTrades() 
-        : getStoredTrades(currentUser.id);
-      setTrades(tradesToLoad);
+      loadTrades();
     }
   }, [currentUser]);
 
-  // Cloud Monitoring for Admin
-  useEffect(() => {
-    if (currentUser?.role === UserRole.ADMIN) {
-      const monitor = async () => {
-        await initializeGoogleSync();
-        const status = await checkCloudVaultStatus();
-        if (status) {
-          setCloudStatus(status.hasNewer ? 'update' : 'active');
-        }
-      };
-      monitor();
-      const interval = setInterval(monitor, 60000);
-      return () => clearInterval(interval);
+  const loadTrades = async () => {
+    if (!currentUser) return;
+    setIsLoading(true);
+    try {
+      const tradesToLoad = currentUser.role === UserRole.ADMIN 
+        ? await getStoredTrades() 
+        : await getStoredTrades(currentUser.id);
+      setTrades(tradesToLoad);
+    } catch (err) {
+      console.error("Failed to load trades:", err);
+    } finally {
+      setIsLoading(false);
     }
-  }, [currentUser]);
+  };
 
   const handleAuthComplete = (user: User) => {
     setAuthUser(user);
     setCurrentUser(user);
   };
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setAuthUser(null);
-    setTrades([]);
+  const handleLogout = async () => {
+    await logoutUser();
   };
 
-  const handleAddTrade = (trade: Trade) => {
-    const allTrades = getStoredTrades();
-    const tradeExists = allTrades.some(t => t.id === trade.id);
-    let updatedAll;
-    
-    if (tradeExists) {
-      updatedAll = allTrades.map(t => t.id === trade.id ? trade : t);
-    } else {
-      updatedAll = [...allTrades, trade];
-    }
-    
-    saveTrades(updatedAll);
-    if (currentUser) {
-      setTrades(currentUser.role === UserRole.ADMIN ? updatedAll : updatedAll.filter(t => t.userId === currentUser.id));
-    }
+  const handleAddTrade = async (trade: Trade) => {
+    setIsLoading(true);
+    await saveTrade(trade);
+    await loadTrades();
     setIsEntryFormOpen(false);
     setEditingTrade(null);
     setSelectedTrade(null);
+    setIsLoading(false);
   };
 
-  const handleUpdateTrade = (updatedTrade: Trade) => {
-    const allTrades = getStoredTrades();
-    const updatedAll = allTrades.map(t => t.id === updatedTrade.id ? updatedTrade : t);
-    saveTrades(updatedAll);
-    if (currentUser) {
-      setTrades(currentUser.role === UserRole.ADMIN ? updatedAll : updatedAll.filter(t => t.userId === currentUser.id));
-    }
-    
+  const handleUpdateTrade = async (updatedTrade: Trade) => {
+    setIsLoading(true);
+    await saveTrade(updatedTrade);
+    await loadTrades();
     if (selectedTrade?.id === updatedTrade.id) {
       setSelectedTrade(updatedTrade);
     }
+    setIsLoading(false);
   };
 
-  const handleDeleteTrade = (id: string) => {
-    const allTrades = getStoredTrades();
-    const updatedAll = allTrades.filter(t => t.id !== id);
-    saveTrades(updatedAll);
-    if (currentUser) {
-      setTrades(currentUser.role === UserRole.ADMIN ? updatedAll : updatedAll.filter(t => t.userId === currentUser.id));
-    }
+  const handleDeleteTrade = async (id: string) => {
+    setIsLoading(true);
+    await deleteTradeFromDB(id);
+    await loadTrades();
     setSelectedTrade(null);
+    setIsLoading(false);
   };
 
-  // Auth & Access Control
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-[#070a13] flex flex-col items-center justify-center p-6 gap-6">
+        <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Initializing Secure Terminal Session...</p>
+      </div>
+    );
+  }
+
   if (!currentUser) {
     return <AuthView onAuthComplete={handleAuthComplete} />;
   }
 
-  // Payment required for new users (Admins are always approved)
+  // Handle billing/verification flow
   if (currentUser.role !== UserRole.ADMIN && currentUser.status === UserStatus.PENDING) {
-    // When payment is finished, force a logout so the user can login with their approved account.
-    return <PaymentView user={currentUser} onPaymentSubmitted={handleLogout} />;
+    return <PaymentView user={currentUser} onPaymentSubmitted={loadTrades} />;
   }
 
-  // Verification status gating (Admins are always approved)
   if (currentUser.role !== UserRole.ADMIN && (currentUser.status === UserStatus.WAITING_APPROVAL || currentUser.status === UserStatus.REJECTED)) {
     return (
       <UserVerificationStatus 
@@ -140,6 +199,15 @@ const App: React.FC = () => {
   }
 
   const renderContent = () => {
+    if (isLoading && trades.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-40 gap-4">
+          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Synchronizing Terminal Data...</p>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard trades={trades} onExport={() => exportTradesToCSV(trades)} />;
@@ -185,9 +253,6 @@ const App: React.FC = () => {
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon}></path></svg>
             <span className="hidden md:block text-[10px] font-black uppercase tracking-widest">{tab.label}</span>
-            {tab.id === 'admin' && cloudStatus === 'update' && (
-               <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 border-2 border-[#0e1421] rounded-full animate-bounce"></div>
-            )}
           </button>
         ))}
         <div className="w-px h-6 bg-[#1e293b] mx-1"></div>
@@ -205,12 +270,10 @@ const App: React.FC = () => {
                {currentUser.role === UserRole.ADMIN && (
                  <span className="bg-purple-500/10 text-purple-400 text-[10px] font-black px-2 py-0.5 rounded border border-purple-500/20 uppercase tracking-widest">Admin Console</span>
                )}
-               {cloudStatus !== 'off' && (
-                 <span className={`text-[10px] font-black px-2 py-0.5 rounded border uppercase tracking-widest flex items-center gap-1.5 ${cloudStatus === 'active' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-orange-500/10 text-orange-500 border-orange-500/20'}`}>
-                   <div className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'active' ? 'bg-emerald-500' : 'bg-orange-500 animate-pulse'}`}></div>
-                   Cloud Linked
-                 </span>
-               )}
+               <span className={`text-[10px] font-black px-2 py-0.5 rounded border border-emerald-500/20 bg-emerald-500/10 text-emerald-500 uppercase tracking-widest flex items-center gap-1.5`}>
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                  Supabase Live
+               </span>
             </div>
             <h1 className="text-4xl font-black text-white tracking-tighter">
               {currentUser.name.split(' ')[0]}'s <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">Terminal</span>

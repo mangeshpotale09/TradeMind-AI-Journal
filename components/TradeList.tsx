@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Trade, TradeStatus, TradeSide, TradeType } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Trade, TradeStatus, TradeSide, User } from '../types';
 import { calculatePnL, getRegisteredUsers } from '../services/storageService';
 
 interface TradeListProps {
@@ -10,12 +10,14 @@ interface TradeListProps {
 }
 
 const TradeList: React.FC<TradeListProps> = ({ trades, onSelect, isAdmin = false }) => {
+  const [users, setUsers] = useState<User[]>([]);
   const sortedTrades = [...trades].sort((a, b) => new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime());
-  const users = isAdmin ? getRegisteredUsers() : [];
 
-  const getCapitalUsed = (trade: Trade): number => {
-    return trade.entryPrice * trade.quantity;
-  };
+  useEffect(() => {
+    if (isAdmin) {
+      getRegisteredUsers().then(setUsers);
+    }
+  }, [isAdmin]);
 
   const getUserName = (userId: string) => {
     const user = users.find(u => u.id === userId);
