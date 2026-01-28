@@ -1,12 +1,19 @@
 
 import { Trade, User, UserRole, UserStatus, PlanType, Transaction } from "../types";
 
+/**
+ * TradeMind AI - Storage Service
+ * Currently using LocalStorage for client-side persistence.
+ * Designed to map 1:1 with the relational schema in schema.sql
+ */
+
 const TRADES_KEY = 'trademind_trades';
 const USERS_KEY = 'trademind_users';
-const SESSION_KEY = 'trademind_session';
+const SESSION_KEY = 'rtrademind_session';
 const TRANSACTIONS_KEY = 'trademind_transactions';
 
 // Security Utility: Simple masking for local storage passwords
+// SQL equivalent: Store using bcrypt/scrypt hashing
 const mask = (str: string) => btoa(str).split('').reverse().join('');
 const unmask = (str: string) => atob(str.split('').reverse().join(''));
 
@@ -16,6 +23,9 @@ const generateReferralCode = (name: string) => {
   return `${prefix}${random}`;
 };
 
+/**
+ * SQL: SELECT * FROM users
+ */
 export const getRegisteredUsers = (): User[] => {
   const data = localStorage.getItem(USERS_KEY);
   if (!data) {
@@ -49,7 +59,6 @@ export const getCurrentUser = (): User | null => {
   const data = localStorage.getItem(SESSION_KEY);
   if (!data) return null;
   const user = JSON.parse(data);
-  // Ensure we don't return the masked password to the UI layer
   return { ...user, password: user.password ? 'PROTECTED' : undefined };
 };
 
@@ -61,6 +70,9 @@ export const setCurrentUser = (user: User | null) => {
   }
 };
 
+/**
+ * SQL: INSERT INTO users ...
+ */
 export const registerUser = (user: Partial<User>): User => {
   const users = getRegisteredUsers();
   const newUser: User = {
@@ -85,6 +97,9 @@ export const registerUser = (user: Partial<User>): User => {
   return newUser;
 };
 
+/**
+ * SQL: SELECT * FROM users WHERE email = ? AND password_mask = ?
+ */
 export const validateLogin = (email: string, pass: string): User | null => {
   const users = getRegisteredUsers();
   const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
@@ -103,20 +118,25 @@ export const resetUserPassword = (email: string, mobile: string, newPassword: st
   return true;
 };
 
-export const saveTransactions = (txs: Transaction[]) => {
-  localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(txs));
-};
-
+/**
+ * SQL: SELECT * FROM transactions
+ */
 export const getTransactions = (): Transaction[] => {
   const data = localStorage.getItem(TRANSACTIONS_KEY);
   return data ? JSON.parse(data) : [];
 };
 
+/**
+ * SQL: INSERT INTO transactions ...
+ */
 export const logTransaction = (tx: Transaction) => {
   const txs = getTransactions();
-  saveTransactions([...txs, tx]);
+  localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify([...txs, tx]));
 };
 
+/**
+ * SQL: UPDATE users SET status = ?, is_paid = ?, expiry_date = ? WHERE id = ?
+ */
 export const updateUserStatus = (userId: string, status: UserStatus) => {
   const users = getRegisteredUsers();
   const updated = users.map(u => {
@@ -148,6 +168,9 @@ export const saveTrades = (trades: Trade[]) => {
   localStorage.setItem(TRADES_KEY, JSON.stringify(trades));
 };
 
+/**
+ * SQL: SELECT * FROM trades WHERE user_id = ?
+ */
 export const getStoredTrades = (userId?: string): Trade[] => {
   const data = localStorage.getItem(TRADES_KEY);
   if (!data) return [];
@@ -175,7 +198,9 @@ export const importFromSyncString = (syncString: string): boolean => {
     if (data.users && data.trades) {
       saveUsers(data.users);
       saveTrades(data.trades);
-      if (data.transactions) saveTransactions(data.transactions);
+      if (data.transactions) {
+        localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(data.transactions));
+      }
       return true;
     }
     return false;
@@ -254,6 +279,7 @@ export const exportUsersToCSV = (users: User[]) => {
   if (users.length === 0) return;
   const headers = ["Identity ID", "Name", "Email", "Mobile", "Plan", "Joined Date", "Amount Paid", "Expiry Date", "Status", "Is Paid"];
   const rows = users.map(u => [
+    // Fix: replaced u.selected_plan with u.selectedPlan to match User interface
     u.displayId, u.name, u.email, u.mobile || 'N/A', u.selectedPlan || 'N/A', new Date(u.joinedAt).toLocaleDateString(), u.amountPaid || 0, u.expiryDate || 'N/A', u.status, u.isPaid ? 'Yes' : 'No'
   ]);
   const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
