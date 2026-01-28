@@ -128,15 +128,15 @@ const App: React.FC = () => {
 
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard' },
-    { id: 'journal', label: 'Trades' },
-    { id: 'analysis', label: 'Edge' },
-    { id: 'mistakes', label: 'Leaks' },
-    { id: 'emotions', label: 'Mind' },
-    { id: 'ai', label: 'Coach' }
+    { id: 'journal', label: 'Trade Log' },
+    { id: 'analysis', label: 'Edge Lab' },
+    { id: 'mistakes', label: 'Leak Audit' },
+    { id: 'emotions', label: 'Psychology' },
+    { id: 'ai', label: 'AI Mentor' }
   ];
 
   if (currentUser.role === UserRole.ADMIN) {
-    navigationItems.push({ id: 'admin', label: 'Admin' });
+    navigationItems.push({ id: 'admin', label: 'Console' });
   }
 
   const activeTabLabel = navigationItems.find(item => item.id === activeTab)?.label || 'Terminal';
@@ -170,9 +170,9 @@ const App: React.FC = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center justify-center px-4 py-3 rounded-2xl transition-all relative whitespace-nowrap min-w-[70px] ${activeTab === tab.id ? 'bg-emerald-500 text-slate-900 shadow-lg shadow-emerald-500/20' : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'}`}
+            className={`flex items-center justify-center px-5 py-3.5 rounded-2xl transition-all relative whitespace-nowrap min-w-[80px] ${activeTab === tab.id ? 'bg-emerald-500 text-slate-900 shadow-lg shadow-emerald-500/20' : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'}`}
           >
-            <span className="text-[9px] font-black uppercase tracking-[0.2em]">{tab.label}</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em]">{tab.label}</span>
           </button>
         ))}
       </nav>
