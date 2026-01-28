@@ -5,11 +5,7 @@ import { User, UserStatus, Trade, Transaction } from '../types';
 
 type AdminTab = 'overview' | 'ledger' | 'registry' | 'sync';
 
-interface AdminViewProps {
-  onLogout: () => void;
-}
-
-const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
+const AdminView: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<AdminTab>('overview');
   const [users, setUsers] = useState<User[]>([]);
   const [allTrades, setAllTrades] = useState<Trade[]>([]);
@@ -88,7 +84,7 @@ const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
         <div className="bg-[#0e1421] border border-[#1e293b] rounded-3xl overflow-hidden">
           <div className="p-8 border-b border-[#1e293b]">
             <h3 className="text-xl font-black text-white">Payment Ledger</h3>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">Direct credits via Supabase Transactions</p>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">Transaction History</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">

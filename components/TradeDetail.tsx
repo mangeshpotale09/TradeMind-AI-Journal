@@ -27,7 +27,6 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pnl = calculatePnL(trade);
 
-  // A user can modify if they are admin OR they own the trade
   const canModify = isAdmin || trade.userId === currentUserId;
 
   const handleCloseTrade = () => {
@@ -160,64 +159,28 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
             </span>
           </div>
 
-          <div className="space-y-4">
-            {trade.strategies.length > 0 && (
-              <div>
-                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Strategy</h3>
-                <div className="flex flex-wrap gap-2">{trade.strategies.map(s => (<span key={s} className="bg-emerald-500/10 text-emerald-400 text-[10px] font-black px-2 py-1 rounded-lg border border-emerald-500/20 uppercase">{s}</span>))}</div>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-4">
-              {trade.emotions.length > 0 && (
-                <div>
-                  <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Psych</h3>
-                  <div className="flex flex-wrap gap-2">{trade.emotions.map(e => (<span key={e} className="bg-blue-500/10 text-blue-400 text-[10px] font-black px-2 py-1 rounded-lg border border-blue-500/20 uppercase">{e}</span>))}</div>
-                </div>
-              )}
-              {trade.mistakes.length > 0 && (
-                <div>
-                  <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Leaks</h3>
-                  <div className="flex flex-wrap gap-2">{trade.mistakes.map(m => (<span key={m} className="bg-red-500/10 text-red-400 text-[10px] font-black px-2 py-1 rounded-lg border border-red-500/20 uppercase">{m}</span>))}</div>
-                </div>
-              )}
-            </div>
-          </div>
-
           <div>
             <h3 className="text-slate-400 font-black text-xs uppercase tracking-widest mb-2 flex items-center gap-2">Notes & Analysis</h3>
             <p className="bg-[#0a0f1d] p-5 rounded-2xl text-slate-300 whitespace-pre-wrap italic border border-[#1e293b] leading-relaxed text-sm">"{trade.notes || 'No context provided.'}"</p>
           </div>
 
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-slate-400 font-black text-xs uppercase tracking-widest flex items-center gap-2">Evidence Vault ({trade.attachments?.length || 0})</h3>
-              {canModify && (
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-[9px] font-black uppercase text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 px-3 py-1.5 rounded-lg hover:bg-emerald-500/5 transition-all"
-                >
-                  Add Evidence
-                </button>
-              )}
-            </div>
+            <h3 className="text-slate-400 font-black text-xs uppercase tracking-widest">Evidence Vault ({trade.attachments?.length || 0})</h3>
             <div className="grid grid-cols-1 gap-4">
               {trade.attachments && trade.attachments.length > 0 ? trade.attachments.map(att => (
                 <div key={att.id} className="border border-[#1e293b] rounded-2xl overflow-hidden bg-[#0a0f1d]">
                   {att.type.startsWith('image/') ? (
-                    <img src={att.data} alt={att.name} className="w-full h-auto cursor-zoom-in" onClick={() => window.open(att.data)} />
+                    <img src={att.data} alt={att.name} className="w-full h-auto" />
                   ) : (
                     <div className="p-6 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <svg className="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        <span className="text-xs font-bold text-slate-300">{att.name}</span>
-                      </div>
-                      <a href={att.data} download={att.name} className="text-[10px] font-black uppercase text-emerald-400 hover:text-emerald-300">Download</a>
+                      <span className="text-xs font-bold text-slate-300">{att.name}</span>
+                      <a href={att.data} download={att.name} className="text-[10px] font-black uppercase text-emerald-400">Download</a>
                     </div>
                   )}
                 </div>
               )) : (
                 <div className="p-10 border-2 border-dashed border-[#1e293b] rounded-2xl text-center">
-                   <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">No evidence captured yet</p>
+                   <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">No evidence captured</p>
                 </div>
               )}
             </div>
@@ -243,16 +206,45 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ trade, onUpdate, onEdit, onDe
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-4">
-                <div className="bg-emerald-500/5 rounded-2xl border border-emerald-500/20 overflow-hidden"><div className="bg-emerald-500/10 px-4 py-2 border-b border-emerald-500/10"><span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Execution Strengths</span></div><div className="p-4"><p className="text-slate-300 text-xs italic">"{trade.aiReview.well}"</p></div></div>
-                <div className="bg-red-500/5 rounded-2xl border border-red-500/20 overflow-hidden"><div className="bg-red-500/10 px-4 py-2 border-b border-red-500/10"><span className="text-[9px] font-black text-red-400 uppercase tracking-widest">Execution Leaks</span></div><div className="p-4"><p className="text-slate-300 text-xs italic">"{trade.aiReview.wrong}"</p></div></div>
-                <div className="bg-blue-500/5 rounded-2xl border border-blue-500/20 overflow-hidden"><div className="bg-blue-500/10 px-4 py-2 border-b border-blue-500/10"><span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Growth Directive</span></div><div className="p-4"><p className="text-white text-xs font-bold leading-relaxed">{trade.aiReview.improvement}</p></div></div>
+                <div className="bg-emerald-500/5 rounded-2xl border border-emerald-500/20 overflow-hidden">
+                  <div className="bg-emerald-500/10 px-4 py-2 border-b border-emerald-500/10"><span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Strengths</span></div>
+                  <div className="p-4"><p className="text-slate-300 text-xs italic">"{trade.aiReview.well}"</p></div>
+                </div>
+                <div className="bg-red-500/5 rounded-2xl border border-red-500/20 overflow-hidden">
+                  <div className="bg-red-500/10 px-4 py-2 border-b border-red-500/10"><span className="text-[9px] font-black text-red-400 uppercase tracking-widest">Leaks</span></div>
+                  <div className="p-4"><p className="text-slate-300 text-xs italic">"{trade.aiReview.wrong}"</p></div>
+                </div>
+                <div className="bg-blue-500/5 rounded-2xl border border-blue-500/20 overflow-hidden">
+                  <div className="bg-blue-500/10 px-4 py-2 border-b border-blue-500/10"><span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Growth Directive</span></div>
+                  <div className="p-4"><p className="text-white text-xs font-bold leading-relaxed">{trade.aiReview.improvement}</p></div>
+                </div>
               </div>
+              
+              {trade.aiReview.sources && trade.aiReview.sources.length > 0 && (
+                <div className="mt-4 p-4 bg-[#0a0f1d] rounded-2xl border border-[#1e293b]">
+                  <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Verified Market Sources</h5>
+                  <div className="space-y-2">
+                    {trade.aiReview.sources.map((src, idx) => (
+                      <a 
+                        key={idx} 
+                        href={src.uri} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="flex items-center gap-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-all group"
+                      >
+                        <svg className="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        <span className="text-[10px] font-bold text-slate-300 group-hover:text-white truncate">{src.title}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
              <div className="h-full flex flex-col items-center justify-center bg-[#0a0f1d] rounded-2xl border border-[#1e293b] p-10 text-center space-y-4">
                <div className="w-16 h-16 bg-blue-500/10 text-blue-400 rounded-2xl flex items-center justify-center"><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
                <h3 className="text-white font-black">AI Analysis Pending</h3>
-               <p className="text-slate-500 text-xs leading-relaxed">Run a Coach Audit to evaluate this trade based on world-class risk management principles.</p>
+               <p className="text-slate-500 text-xs leading-relaxed">Run a Coach Audit to evaluate this trade with Google Search grounded intelligence.</p>
             </div>
           )}
         </div>

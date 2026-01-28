@@ -79,6 +79,11 @@ export interface OptionDetails {
   dte?: number;
 }
 
+export interface GroundingSource {
+  title: string;
+  uri: string;
+}
+
 export interface AIReview {
   score: number;
   well: string;
@@ -86,6 +91,7 @@ export interface AIReview {
   violations: boolean;
   improvement: string;
   timestamp: number;
+  sources?: GroundingSource[];
 }
 
 export interface Attachment {

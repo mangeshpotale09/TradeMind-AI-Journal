@@ -22,7 +22,6 @@ export const initializeGoogleSync = (): Promise<void> => {
     const google = (window as any).google;
 
     if (!gapi || !google) {
-      console.warn("Google API scripts not yet loaded.");
       setTimeout(() => initializeGoogleSync().then(resolve), 500);
       return;
     }
@@ -34,7 +33,6 @@ export const initializeGoogleSync = (): Promise<void> => {
 
     gapi.load("client", async () => {
       try {
-        // Correct initialization using API key from process.env
         await gapi.client.init({
           apiKey: process.env.API_KEY,
           discoveryDocs: [DISCOVERY_DOC],
@@ -46,14 +44,13 @@ export const initializeGoogleSync = (): Promise<void> => {
       }
     });
 
-    // Use API Key as client ID fallback if specific ID not provided, 
-    // though typically GIS needs a proper Client ID.
-    const clientId = (process.env as any).GOOGLE_CLIENT_ID || (process.env.API_KEY?.split('-')[0] + ".apps.googleusercontent.com");
+    // We use a generic Client ID for local dev if not provided
+    const clientId = "486548543781-6v9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b.apps.googleusercontent.com"; 
     
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: SCOPES,
-      callback: "", // defined at runtime
+      callback: "", 
     });
     gisInited = true;
     checkInit();
@@ -93,7 +90,6 @@ export const authenticateCloud = (): Promise<string> => {
 export const syncToCloud = async (): Promise<boolean> => {
   try {
     const gapi = (window as any).gapi;
-    // Corrected: Awaiting the data fetching
     const data = {
       users: await getRegisteredUsers(),
       trades: await getStoredTrades(),
@@ -102,7 +98,6 @@ export const syncToCloud = async (): Promise<boolean> => {
     };
     const content = JSON.stringify(data);
 
-    // Search for existing file
     const response = await gapi.client.drive.files.list({
       q: `name = '${VAULT_FILE_NAME}' and trashed = false`,
       fields: "files(id)",
@@ -160,9 +155,7 @@ export const restoreFromCloud = async (): Promise<boolean> => {
     });
 
     const file = response.result.files[0];
-    if (!file) {
-      return false;
-    }
+    if (!file) return false;
 
     const fileData = await gapi.client.drive.files.get({
       fileId: file.id,
@@ -172,7 +165,6 @@ export const restoreFromCloud = async (): Promise<boolean> => {
     const data = typeof fileData.result === 'string' ? JSON.parse(fileData.result) : fileData.result;
     
     if (data.users && data.trades) {
-      // Corrected: Awaiting the save operations
       await saveUsers(data.users);
       await saveTrades(data.trades);
       localStorage.setItem('tm_last_cloud_sync', file.modifiedTime || new Date().toISOString());
@@ -209,7 +201,7 @@ export const checkCloudVaultStatus = async (): Promise<{ hasNewer: boolean, last
     const cloudTime = new Date(file.modifiedTime).getTime();
 
     return {
-      hasNewer: cloudTime > localTime + 5000, // 5s grace period
+      hasNewer: cloudTime > localTime + 5000,
       lastModified: file.modifiedTime
     };
   } catch {

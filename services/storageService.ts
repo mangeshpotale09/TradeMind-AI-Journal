@@ -1,21 +1,19 @@
 
 import { Trade, User, UserRole, UserStatus, PlanType, Transaction, TradeType, TradeSide, TradeStatus } from "../types";
-import { supabase } from "./supabaseClient";
 
 /**
- * TradeMind AI - Storage Service
- * Professional-grade data synchronization for institutional-level journaling.
+ * TradeMind AI - Local Storage Service
+ * High-performance browser-based persistence layer with auto-provisioning.
  */
 
-const SESSION_KEY = 'trademind_session';
+const KEYS = {
+  TRADES: 'trademind_trades',
+  USERS: 'trademind_users',
+  SESSION: 'trademind_session',
+  TRANSACTIONS: 'trademind_transactions'
+};
 
 export const generateUUID = (): string => {
-  try {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      return crypto.randomUUID();
-    }
-  } catch (e) {}
-  
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -23,304 +21,192 @@ export const generateUUID = (): string => {
   });
 };
 
-export const getCurrentUser = (): User | null => {
-  try {
-    const data = localStorage.getItem(SESSION_KEY);
-    if (!data) return null;
-    return JSON.parse(data);
-  } catch (err) {
-    return null;
-  }
+// --- Helper Methods ---
+const getLocal = <T>(key: string): T[] => {
+  const data = localStorage.getItem(key);
+  return data ? JSON.parse(data) : [];
 };
 
-export const setCurrentUser = (user: User | null) => {
-  if (user) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-  } else {
-    localStorage.removeItem(SESSION_KEY);
-  }
+const saveLocal = <T>(key: string, data: T[]): void => {
+  localStorage.setItem(key, JSON.stringify(data));
 };
 
-export const registerUser = async (params: { email: string; password: string; name: string; mobile: string }): Promise<any> => {
-  const { email, password, name, mobile } = params;
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { name, mobile }
-    }
-  });
-  if (error) throw error;
-  return data.user;
-};
+// --- User & Identity ---
 
-export const validateLogin = async (email: string, password: string): Promise<User | null> => {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-  if (!data.user) return null;
-  return await fetchAndSyncProfile(data.user);
-};
-
-export const resetUserPassword = async (email: string, mobile: string, newPassword: string): Promise<boolean> => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .single();
-    
-  if (error || !data) return false;
-  return true;
+// Added setCurrentUser to resolve import errors in AuthView
+export const setCurrentUser = (user: User): void => {
+  localStorage.setItem(KEYS.SESSION, JSON.stringify(user));
 };
 
 /**
- * Ensures a profile exists in the DB. If missing, it force-creates it.
+ * Automatically retrieves or creates the local terminal user.
+ * This removes the requirement for a login page.
  */
-export const ensureProfileExists = async (userId: string, email: string, name?: string): Promise<void> => {
-  if (!userId) throw new Error("User ID is required for profile verification.");
-
-  const { data: existing, error: fetchError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('id', userId)
-    .maybeSingle();
-
-  if (fetchError) {
-    console.error("Profile check error:", fetchError);
-    throw new Error(`Profile access denied: ${fetchError.message}`);
-  }
-
-  if (!existing) {
-    const displayId = `TM-${userId.substring(0, 8).toUpperCase()}`;
-    const payload = {
-      id: userId,
-      email: email,
-      name: name || 'Trader',
-      display_id: displayId,
-      status: 'APPROVED',
-      is_paid: true,
-      role: 'USER'
-    };
-
-    const { error: insertError } = await supabase
-      .from('profiles')
-      .insert([payload]);
-      
-    if (insertError && !insertError.message.includes("duplicate key")) {
-         console.error("Critical Profile Creation Failure:", insertError.message);
-         throw new Error(`Profile initialization failed: ${insertError.message}`);
+export const getOrCreateCurrentUser = (): User => {
+  const data = localStorage.getItem(KEYS.SESSION);
+  if (data) {
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      localStorage.removeItem(KEYS.SESSION);
     }
   }
-};
-
-export const fetchAndSyncProfile = async (supabaseUser: any): Promise<User | null> => {
-  if (!supabaseUser) return null;
-
-  try {
-    await ensureProfileExists(supabaseUser.id, supabaseUser.email!, supabaseUser.user_metadata?.name);
-
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', supabaseUser.id)
-      .maybeSingle();
-
-    if (error || !profile) {
-      throw new Error(error?.message || "Profile record not found.");
-    }
-
-    return {
-      ...profile,
-      displayId: profile.display_id,
-      joinedAt: profile.joined_at,
-      isPaid: profile.is_paid,
-      selectedPlan: profile.selected_plan as PlanType,
-      status: profile.status as UserStatus,
-      role: profile.role as UserRole,
-      ownReferralCode: profile.own_referral_code || ''
-    };
-  } catch (err: any) {
-    console.error("Sync Profile Error:", err);
-    return {
-      id: supabaseUser.id,
-      email: supabaseUser.email!,
-      name: supabaseUser.user_metadata?.name || 'Trader',
-      displayId: `TM-${supabaseUser.id.substring(0, 8).toUpperCase()}`,
-      status: UserStatus.APPROVED, 
-      isPaid: true,
-      role: UserRole.USER,
-      joinedAt: new Date().toISOString(),
-      ownReferralCode: ''
-    };
+  
+  const newUser: User = {
+    id: generateUUID(),
+    displayId: `TM-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
+    email: 'local@terminal.ai',
+    name: 'Default Trader',
+    isPaid: true, // Full features unlocked in local mode
+    role: UserRole.USER,
+    status: UserStatus.APPROVED,
+    joinedAt: new Date().toISOString(),
+    ownReferralCode: Math.random().toString(36).substring(7).toUpperCase()
+  };
+  
+  localStorage.setItem(KEYS.SESSION, JSON.stringify(newUser));
+  
+  // Also save to global user list for consistency
+  const users = getLocal<User>(KEYS.USERS);
+  if (!users.find(u => u.id === newUser.id)) {
+    users.push(newUser);
+    saveLocal(KEYS.USERS, users);
   }
+  
+  return newUser;
 };
 
+// Kept for backward compatibility with components but simplified
+export const getCurrentUser = (): User | null => getOrCreateCurrentUser();
+
+// Added registerUser to resolve import errors in AuthView
+export const registerUser = async (data: { email: string; name: string; password?: string; mobile?: string }): Promise<User> => {
+  const users = getLocal<User>(KEYS.USERS);
+  const existing = users.find(u => u.email === data.email);
+  if (existing) {
+    throw new Error("Identity already registered in this terminal.");
+  }
+  
+  const newUser: User = {
+    id: generateUUID(),
+    displayId: `TM-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
+    email: data.email,
+    name: data.name,
+    password: data.password,
+    mobile: data.mobile,
+    isPaid: false,
+    role: UserRole.USER,
+    status: UserStatus.PENDING,
+    joinedAt: new Date().toISOString(),
+    ownReferralCode: Math.random().toString(36).substring(7).toUpperCase()
+  };
+  
+  users.push(newUser);
+  saveLocal(KEYS.USERS, users);
+  return newUser;
+};
+
+// Added validateLogin to resolve import errors in AuthView
+export const validateLogin = async (email: string, password?: string): Promise<User | null> => {
+  const users = getLocal<User>(KEYS.USERS);
+  const user = users.find(u => u.email === email && u.password === password);
+  if (user) {
+    setCurrentUser(user);
+    return user;
+  }
+  return null;
+};
+
+// Added resetUserPassword to resolve import errors in AuthView
+export const resetUserPassword = async (email: string, mobile: string, newPassword?: string): Promise<boolean> => {
+  const users = getLocal<User>(KEYS.USERS);
+  const index = users.findIndex(u => u.email === email && u.mobile === mobile);
+  if (index !== -1) {
+    users[index].password = newPassword;
+    saveLocal(KEYS.USERS, users);
+    return true;
+  }
+  return false;
+};
+
+// --- Trades ---
 export const calculateGrossPnL = (trade: Trade): number => {
   if (trade.status === TradeStatus.OPEN || trade.exitPrice === undefined) return 0;
-  return (Number(trade.exitPrice) - Number(trade.entryPrice)) * Number(trade.quantity) * (trade.side === TradeSide.LONG ? 1 : -1);
+  return (trade.exitPrice - trade.entryPrice) * trade.quantity * (trade.side === TradeSide.LONG ? 1 : -1);
 };
 
-export const calculatePnL = (trade: Trade): number => calculateGrossPnL(trade) - Number(trade.fees);
+export const calculatePnL = (trade: Trade): number => calculateGrossPnL(trade) - trade.fees;
 
 export const getStoredTrades = async (userId?: string): Promise<Trade[]> => {
-  let query = supabase.from('trades').select('*');
-  if (userId) query = query.eq('user_id', userId);
-  
-  const { data, error } = await query.order('entry_date', { ascending: false });
-  if (error) {
-    console.error("Fetch Trades Error:", error);
-    return [];
-  }
-
-  return (data || []).map(t => ({
-    id: t.id,
-    userId: t.user_id,
-    symbol: t.symbol,
-    type: t.trade_type as TradeType,
-    side: t.side as TradeSide,
-    status: t.status as TradeStatus,
-    entryPrice: Number(t.entry_price),
-    exitPrice: t.exit_price ? Number(t.exit_price) : undefined,
-    quantity: Number(t.quantity),
-    entryDate: t.entry_date,
-    exitDate: t.exit_date,
-    fees: Number(t.fees),
-    notes: t.notes || '',
-    strategies: t.strategies || [],
-    emotions: t.emotions || [],
-    mistakes: t.mistakes || [],
-    attachments: t.attachments || [],
-    aiReview: t.ai_review,
-    optionDetails: t.option_details,
-    tags: t.tags || []
-  }));
+  const trades = getLocal<Trade>(KEYS.TRADES);
+  if (userId) return trades.filter(t => t.userId === userId);
+  return trades;
 };
 
 export const saveTrade = async (trade: Trade): Promise<void> => {
-  const user = getCurrentUser();
-  if (!user) throw new Error("No active session detected.");
-
-  await ensureProfileExists(user.id, user.email, user.name);
-
-  // Payload specifically mapped to match schema.sql exactly
-  const payload = {
-    id: trade.id,
-    user_id: trade.userId,
-    symbol: trade.symbol,
-    trade_type: trade.type,
-    side: trade.side,
-    status: trade.status,
-    entry_price: Number(trade.entryPrice),
-    exit_price: trade.exitPrice !== undefined ? Number(trade.exitPrice) : null,
-    quantity: Number(trade.quantity),
-    entry_date: trade.entryDate,
-    exit_date: trade.exitDate || null,
-    fees: Number(trade.fees || 0),
-    notes: trade.notes || '',
-    tags: trade.tags || [],
-    strategies: trade.strategies || [],
-    emotions: trade.emotions || [],
-    mistakes: trade.mistakes || [],
-    attachments: trade.attachments || [],
-    ai_review: trade.aiReview || null,
-    option_details: trade.optionDetails || null
-  };
-
-  const { error } = await supabase.from('trades').upsert([payload]);
+  const trades = getLocal<Trade>(KEYS.TRADES);
+  const index = trades.findIndex(t => t.id === trade.id);
   
-  if (error) {
-    console.error("Trade Save Failure:", error.message, error.details);
-    throw new Error(`Cloud Sync Failed: ${error.message}`);
+  if (index !== -1) {
+    trades[index] = trade;
+  } else {
+    trades.push(trade);
   }
+  
+  saveLocal(KEYS.TRADES, trades);
 };
 
-export const saveTrades = async (trades: Trade[]): Promise<void> => {
-  for (const trade of trades) {
-    await saveTrade(trade);
-  }
+export const saveTrades = async (tradesToSave: Trade[]): Promise<void> => {
+  const existing = getLocal<Trade>(KEYS.TRADES);
+  const merged = [...existing];
+  
+  tradesToSave.forEach(trade => {
+    const idx = merged.findIndex(t => t.id === trade.id);
+    if (idx !== -1) merged[idx] = trade;
+    else merged.push(trade);
+  });
+  
+  saveLocal(KEYS.TRADES, merged);
 };
 
 export const deleteTradeFromDB = async (id: string): Promise<void> => {
-  const { error } = await supabase.from('trades').delete().eq('id', id);
-  if (error) throw error;
+  const trades = getLocal<Trade>(KEYS.TRADES);
+  saveLocal(KEYS.TRADES, trades.filter(t => t.id !== id));
 };
 
+// --- Admin & Transactions ---
 export const getRegisteredUsers = async (): Promise<User[]> => {
-  const { data, error } = await supabase.from('profiles').select('*');
-  if (error) return [];
-  return (data || []).map(u => ({
-    ...u,
-    displayId: u.display_id,
-    joinedAt: u.joined_at,
-    isPaid: u.is_paid,
-    status: u.status as UserStatus,
-    role: u.role as UserRole,
-    ownReferralCode: u.own_referral_code || ''
-  }));
+  return getLocal<User>(KEYS.USERS);
 };
 
-// Fix: Implementation of saveUsers for bulk profile synchronization with Supabase
-export const saveUsers = async (users: User[]): Promise<void> => {
-  const payloads = users.map(user => ({
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    mobile: user.mobile,
-    display_id: user.displayId,
-    status: user.status,
-    is_paid: user.isPaid,
-    role: user.role,
-    joined_at: user.joinedAt,
-    own_referral_code: user.ownReferralCode,
-    selected_plan: user.selectedPlan
-  }));
-
-  const { error } = await supabase.from('profiles').upsert(payloads);
-  if (error) {
-    console.error("User Sync Failure:", error.message);
-    throw new Error(`Cloud User Sync Failed: ${error.message}`);
-  }
+export const saveUsers = async (usersToSave: User[]): Promise<void> => {
+  saveLocal(KEYS.USERS, usersToSave);
 };
 
 export const logTransaction = async (tx: Transaction): Promise<void> => {
-  const payload = {
-    id: tx.id,
-    order_id: tx.orderId,
-    signature: tx.signature,
-    user_id: tx.userId,
-    user_name: tx.userName,
-    plan_type: tx.plan,
-    amount: tx.amount,
-    method: tx.method,
-    status: tx.status,
-    timestamp: tx.timestamp
-  };
-  const { error } = await supabase.from('transactions').insert([payload]);
-  if (error) throw error;
+  const txs = getLocal<Transaction>(KEYS.TRANSACTIONS);
+  txs.push(tx);
+  saveLocal(KEYS.TRANSACTIONS, txs);
 };
 
 export const getTransactions = async (): Promise<Transaction[]> => {
-  const { data, error } = await supabase.from('transactions').select('*').order('timestamp', { ascending: false });
-  if (error) return [];
-  return (data || []).map(tx => ({
-    id: tx.id,
-    orderId: tx.order_id,
-    signature: tx.signature,
-    userId: tx.user_id,
-    userName: tx.user_name,
-    plan: tx.plan_type as PlanType,
-    amount: Number(tx.amount),
-    method: tx.method,
-    timestamp: tx.timestamp,
-    status: tx.status as 'SUCCESS' | 'PENDING' | 'FAILED'
-  }));
+  return getLocal<Transaction>(KEYS.TRANSACTIONS);
 };
 
 export const updateUserStatus = async (userId: string, status: UserStatus): Promise<void> => {
-  const { error } = await supabase.from('profiles').update({ 
-    status, 
-    is_paid: status === UserStatus.APPROVED 
-  }).eq('id', userId);
-  if (error) throw error;
+  const users = getLocal<User>(KEYS.USERS);
+  const index = users.findIndex(u => u.id === userId);
+  if (index !== -1) {
+    users[index].status = status;
+    users[index].isPaid = status === UserStatus.APPROVED;
+    saveLocal(KEYS.USERS, users);
+    
+    // Update session if it's the current user
+    const current = getOrCreateCurrentUser();
+    if (current.id === userId) {
+      localStorage.setItem(KEYS.SESSION, JSON.stringify(users[index]));
+    }
+  }
 };
 
 export const exportTradesToCSV = (trades: Trade[]): void => {

@@ -1,17 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
-import { Trade, User, UserRole, UserStatus } from './types';
+import { Trade, User, UserRole } from './types';
 import { 
   getStoredTrades, 
   saveTrade,
   deleteTradeFromDB,
   exportTradesToCSV, 
-  getCurrentUser, 
-  setCurrentUser,
-  fetchAndSyncProfile,
-  updateUserStatus
+  getOrCreateCurrentUser
 } from './services/storageService';
-import { supabase } from './services/supabaseClient';
+import { initializeGoogleSync, authenticateCloud, syncToCloud, restoreFromCloud } from './services/googleDriveService';
 
 import Dashboard from './components/Dashboard';
 import TradeList from './components/TradeList';
@@ -22,81 +19,58 @@ import MistakesView from './components/MistakesView';
 import EmotionsView from './components/EmotionsView';
 import AIInsightsView from './components/AIInsightsView';
 import AdminView from './components/AdminView';
-import AuthView from './components/AuthView';
 
 const App: React.FC = () => {
-  const [currentUser, setAuthUser] = useState<User | null>(getCurrentUser());
+  const [currentUser] = useState<User>(getOrCreateCurrentUser());
   const [trades, setTrades] = useState<Trade[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'journal' | 'analysis' | 'mistakes' | 'emotions' | 'ai' | 'admin'>('dashboard');
   const [isEntryFormOpen, setIsEntryFormOpen] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
 
   useEffect(() => {
-    const initTerminal = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
-          const profile = await fetchAndSyncProfile(session.user);
-          if (profile) {
-            setAuthUser(profile);
-            setCurrentUser(profile);
-          }
-        }
-      } catch (err) {
-        console.error("Terminal sync failed:", err);
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-
-    initTerminal();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
-        const profile = await fetchAndSyncProfile(session.user);
-        if (profile) {
-          setAuthUser(profile);
-          setCurrentUser(profile);
-        }
-      } else if (event === 'SIGNED_OUT') {
-        setAuthUser(null);
-        setCurrentUser(null);
-        setTrades([]);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    initializeGoogleSync().catch(console.error);
+    setIsInitializing(false);
   }, []);
 
   useEffect(() => {
-    // Access is granted if user is logged in
-    if (currentUser) {
-      loadTrades();
-    }
-  }, [currentUser?.id]);
+    loadTrades();
+  }, [currentUser.id]);
 
   const loadTrades = async () => {
-    if (!currentUser) return;
     setIsLoading(true);
     try {
       const tradesToLoad = await getStoredTrades(currentUser.id);
       setTrades(tradesToLoad);
     } catch (err) {
-      console.error("Failed to load trades from Supabase:", err);
+      console.error("Failed to load trades:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    if (window.confirm("Sign out from secure terminal?")) {
-      await supabase.auth.signOut();
-      localStorage.clear();
-      window.location.reload();
+  const handleCloudSync = async (direction: 'up' | 'down') => {
+    setIsCloudSyncing(true);
+    setCloudStatus('idle');
+    try {
+      await authenticateCloud();
+      const success = direction === 'up' ? await syncToCloud() : await restoreFromCloud();
+      if (success) {
+        setCloudStatus('success');
+        if (direction === 'down') await loadTrades();
+      } else {
+        setCloudStatus('error');
+      }
+    } catch (err) {
+      console.error("Cloud Sync Error:", err);
+      setCloudStatus('error');
+    } finally {
+      setIsCloudSyncing(false);
+      setTimeout(() => setCloudStatus('idle'), 3000);
     }
   };
 
@@ -109,7 +83,7 @@ const App: React.FC = () => {
       setEditingTrade(null);
       setSelectedTrade(null);
     } catch (err) {
-      alert("Failed to sync execution to cloud.");
+      alert("Failed to save execution.");
     } finally {
       setIsLoading(false);
     }
@@ -124,7 +98,7 @@ const App: React.FC = () => {
         setSelectedTrade(updatedTrade);
       }
     } catch (err) {
-      alert("Update synchronization failed.");
+      alert("Update failed.");
     } finally {
       setIsLoading(false);
     }
@@ -137,28 +111,19 @@ const App: React.FC = () => {
       await loadTrades();
       setSelectedTrade(null);
     } catch (err) {
-      alert("Failed to purge record from cloud.");
+      alert("Failed to purge record.");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const onAuthSuccess = (user: User) => {
-    setAuthUser(user);
-    setCurrentUser(user);
   };
 
   if (isInitializing) {
     return (
       <div className="min-h-screen bg-[#070a13] flex flex-col items-center justify-center p-6 gap-6">
         <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Initializing Secure Protocol...</p>
+        <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Initializing Secure Terminal...</p>
       </div>
     );
-  }
-
-  if (!currentUser) {
-    return <AuthView onAuthComplete={onAuthSuccess} />;
   }
 
   const renderContent = () => {
@@ -166,7 +131,7 @@ const App: React.FC = () => {
       return (
         <div className="flex flex-col items-center justify-center py-40 gap-4">
           <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Scanning Global Tape...</p>
+          <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Processing Tape...</p>
         </div>
       );
     }
@@ -178,7 +143,7 @@ const App: React.FC = () => {
       case 'mistakes': return <MistakesView trades={trades} />;
       case 'emotions': return <EmotionsView trades={trades} />;
       case 'ai': return <AIInsightsView trades={trades} />;
-      case 'admin': return <AdminView onLogout={handleLogout} />;
+      case 'admin': return <AdminView />;
       default: return <Dashboard trades={trades} />;
     }
   };
@@ -209,10 +174,6 @@ const App: React.FC = () => {
             <span className="hidden md:block text-[10px] font-black uppercase tracking-widest">{tab.label}</span>
           </button>
         ))}
-        <div className="w-px h-6 bg-[#1e293b] mx-1"></div>
-        <button onClick={handleLogout} className="p-3 text-red-500 hover:bg-red-500/10 rounded-2xl transition-all" title="Sign Out">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-        </button>
       </nav>
 
       <main className="max-w-7xl mx-auto px-6 pt-12 pb-32">
@@ -220,23 +181,44 @@ const App: React.FC = () => {
           <div>
             <div className="flex items-center gap-3 mb-1">
                <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-black px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">{currentUser.displayId}</span>
-               <span className="text-[10px] font-black px-2 py-0.5 rounded border border-emerald-500/20 bg-emerald-500/10 text-emerald-500 uppercase tracking-widest flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                  Secure Node
-               </span>
+               <div className="flex items-center gap-2 bg-[#0e1421] px-2 py-0.5 rounded border border-[#1e293b]">
+                  <div className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'success' ? 'bg-emerald-500' : cloudStatus === 'error' ? 'bg-red-500' : 'bg-blue-500'}`}></div>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Cloud Sync: {cloudStatus === 'success' ? 'Active' : cloudStatus === 'error' ? 'Failed' : 'Idle'}</span>
+               </div>
             </div>
             <h1 className="text-4xl font-black text-white tracking-tighter">
               TradeMind <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">Terminal</span>
             </h1>
           </div>
           
-          <button 
-            onClick={() => setIsEntryFormOpen(true)}
-            className="group relative inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black px-8 py-4 rounded-2xl transition-all shadow-2xl shadow-emerald-500/20 active:scale-95"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
-            <span className="text-xs uppercase tracking-[0.2em]">Log Execution</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="hidden lg:flex items-center gap-2 bg-[#0a0f1d] p-1 rounded-2xl border border-[#1e293b]">
+              <button 
+                onClick={() => handleCloudSync('up')}
+                disabled={isCloudSyncing}
+                className="p-3 rounded-xl hover:bg-white/5 text-slate-400 hover:text-emerald-500 transition-all disabled:opacity-30"
+                title="Backup to Cloud"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+              </button>
+              <button 
+                onClick={() => handleCloudSync('down')}
+                disabled={isCloudSyncing}
+                className="p-3 rounded-xl hover:bg-white/5 text-slate-400 hover:text-blue-500 transition-all disabled:opacity-30"
+                title="Restore from Cloud"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 13l3 3m0 0l3-3m-3 3V10"></path></svg>
+              </button>
+            </div>
+
+            <button 
+              onClick={() => setIsEntryFormOpen(true)}
+              className="group relative inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black px-8 py-4 rounded-2xl transition-all shadow-2xl shadow-emerald-500/20 active:scale-95"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
+              <span className="text-xs uppercase tracking-[0.2em]">Log Execution</span>
+            </button>
+          </div>
         </header>
         {renderContent()}
       </main>
