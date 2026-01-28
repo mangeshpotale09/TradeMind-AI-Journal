@@ -127,16 +127,16 @@ const App: React.FC = () => {
   }
 
   const navigationItems = [
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'journal', label: 'Trade Log' },
-    { id: 'analysis', label: 'Edge Lab' },
-    { id: 'mistakes', label: 'Leak Audit' },
-    { id: 'emotions', label: 'Psychology' },
-    { id: 'ai', label: 'AI Mentor' }
+    { id: 'dashboard', label: 'Dash', color: 'bg-emerald-500' },
+    { id: 'journal', label: 'Log', color: 'bg-cyan-500' },
+    { id: 'analysis', label: 'Edge', color: 'bg-violet-500' },
+    { id: 'mistakes', label: 'Leak', color: 'bg-rose-500' },
+    { id: 'emotions', label: 'Mind', color: 'bg-amber-500' },
+    { id: 'ai', label: 'Coach', color: 'bg-blue-500' }
   ];
 
   if (currentUser.role === UserRole.ADMIN) {
-    navigationItems.push({ id: 'admin', label: 'Console' });
+    navigationItems.push({ id: 'admin', label: 'Admin', color: 'bg-purple-600' });
   }
 
   const activeTabLabel = navigationItems.find(item => item.id === activeTab)?.label || 'Terminal';
@@ -165,19 +165,23 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#070a13] text-slate-200 font-sans selection:bg-emerald-500/30">
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0e1421]/90 backdrop-blur-xl border border-[#1e293b] p-1.5 rounded-[2rem] shadow-2xl flex items-center gap-1 md:gap-1.5 max-w-[95vw] overflow-x-auto no-scrollbar">
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0e1421]/95 backdrop-blur-2xl border border-[#1e293b] p-1 rounded-[1.5rem] shadow-2xl flex items-center gap-1 max-w-[96vw] overflow-x-auto no-scrollbar">
         {navigationItems.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center justify-center px-5 py-3.5 rounded-2xl transition-all relative whitespace-nowrap min-w-[80px] ${activeTab === tab.id ? 'bg-emerald-500 text-slate-900 shadow-lg shadow-emerald-500/20' : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'}`}
+            className={`flex items-center justify-center px-3.5 py-2.5 rounded-2xl transition-all relative whitespace-nowrap min-w-[60px] ${
+              activeTab === tab.id 
+                ? `${tab.color} text-slate-900 shadow-lg` 
+                : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'
+            }`}
           >
-            <span className="text-[10px] font-black uppercase tracking-[0.2em]">{tab.label}</span>
+            <span className={`text-[8px] font-black uppercase tracking-[0.15em]`}>{tab.label}</span>
           </button>
         ))}
       </nav>
 
-      <main className="max-w-7xl mx-auto px-6 pt-12 pb-32">
+      <main className="max-w-7xl mx-auto px-4 md:px-6 pt-12 pb-32">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div>
             <div className="flex items-center gap-3 mb-1">
@@ -214,10 +218,10 @@ const App: React.FC = () => {
 
             <button 
               onClick={() => setIsEntryFormOpen(true)}
-              className="group relative inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black px-8 py-4 rounded-2xl transition-all shadow-2xl shadow-emerald-500/20 active:scale-95"
+              className="group relative inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black px-6 md:px-8 py-3 md:py-4 rounded-2xl transition-all shadow-2xl shadow-emerald-500/20 active:scale-95"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
-              <span className="text-xs uppercase tracking-[0.2em]">Log Execution</span>
+              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
+              <span className="text-[10px] md:text-xs uppercase tracking-[0.2em]">Log Trade</span>
             </button>
           </div>
         </header>
