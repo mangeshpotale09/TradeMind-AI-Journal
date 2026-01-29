@@ -41,6 +41,26 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
     return Object.values(map);
   }, [closedTrades]);
 
+  const dailyData = useMemo(() => {
+    const dayIndices = [1, 2, 3, 4, 5]; // Mon (1) to Fri (5)
+    const dayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    const map: Record<number, { dayLabel: string; pnl: number; count: number }> = {};
+    
+    dayIndices.forEach((d, idx) => {
+      map[d] = { dayLabel: dayLabels[idx], pnl: 0, count: 0 };
+    });
+
+    closedTrades.forEach(t => {
+      const day = new Date(t.entryDate).getDay();
+      if (map[day]) {
+        map[day].pnl += calculateGrossPnL(t);
+        map[day].count++;
+      }
+    });
+
+    return Object.values(map);
+  }, [closedTrades]);
+
   const bestHour = useMemo(() => {
     return [...hourlyData].sort((a, b) => b.pnl - a.pnl)[0];
   }, [hourlyData]);
@@ -48,6 +68,14 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
   const worstHour = useMemo(() => {
     return [...hourlyData].sort((a, b) => a.pnl - b.pnl)[0];
   }, [hourlyData]);
+
+  const bestDay = useMemo(() => {
+    return [...dailyData].sort((a, b) => b.pnl - a.pnl)[0];
+  }, [dailyData]);
+
+  const worstDay = useMemo(() => {
+    return [...dailyData].sort((a, b) => a.pnl - b.pnl)[0];
+  }, [dailyData]);
 
   const weeklyBreakdown = useMemo(() => {
     const weeks: Record<string, { week: string; win: number; loss: number; grossProfit: number; count: number }> = {};
@@ -169,6 +197,82 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
               />
               <Bar dataKey="pnl" radius={[8, 8, 0, 0]} barSize={40}>
                 {hourlyData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? '#10b981' : '#ef4444'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+
+      {/* Daily Performance Edge Section */}
+      <section className="bg-[#0e1421] p-8 rounded-[2.5rem] border border-[#1e293b] shadow-2xl overflow-hidden relative">
+        <div className="flex items-center gap-3 mb-8">
+           <div className="bg-blue-500/10 p-2.5 rounded-2xl text-blue-500">
+             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+           </div>
+           <h3 className="text-3xl font-black text-white tracking-tighter">Daily Performance Edge</h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+          <div className="bg-[#111827] p-6 rounded-3xl border border-emerald-500/10 flex flex-col gap-2 transition-all hover:border-emerald-500/30">
+            <span className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Most Profitable Day</span>
+            <div className="text-4xl font-black text-emerald-400 tracking-tight">{bestDay?.dayLabel || '--'}</div>
+            <div className="flex items-center gap-2 text-slate-400 text-xs font-mono">
+              <span className="font-bold">₹{bestDay?.pnl.toLocaleString() || '0'}</span>
+              <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+              <span>{bestDay?.count || 0} trades</span>
+            </div>
+          </div>
+          <div className="bg-[#111827] p-6 rounded-3xl border border-red-500/10 flex flex-col gap-2 transition-all hover:border-red-500/30">
+            <span className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Least Profitable Day</span>
+            <div className="text-4xl font-black text-red-400 tracking-tight">{worstDay?.dayLabel || '--'}</div>
+            <div className="flex items-center gap-2 text-slate-400 text-xs font-mono">
+              <span className="font-bold">₹{worstDay?.pnl.toLocaleString() || '0'}</span>
+              <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+              <span>{worstDay?.count || 0} trades</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="h-[350px] w-full pr-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={dailyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={true} horizontal={true} />
+              <XAxis 
+                dataKey="dayLabel" 
+                stroke="#64748b" 
+                fontSize={11} 
+                fontFamily="Inter, sans-serif"
+                fontWeight={700}
+                axisLine={true} 
+                tickLine={true}
+                dy={10}
+              />
+              <YAxis 
+                stroke="#64748b" 
+                fontSize={10} 
+                axisLine={true} 
+                tickLine={true}
+                tickFormatter={(val) => `₹${val}`} 
+              />
+              <Tooltip 
+                cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                contentStyle={{ backgroundColor: '#070a13', borderColor: '#1e293b', borderRadius: '16px', color: '#f8fafc' }}
+                itemStyle={{ fontWeight: '900' }}
+                formatter={(value: any, name: any, props: any) => {
+                  const item = props.payload;
+                  return [
+                    <div key="tooltip-content" className="flex flex-col gap-1">
+                      <div className="font-black text-slate-200">₹{item.pnl.toLocaleString()}</div>
+                      <div className="text-[10px] text-slate-400 uppercase tracking-widest">{item.count} Executions</div>
+                    </div>,
+                    'Performance'
+                  ];
+                }}
+              />
+              <Bar dataKey="pnl" radius={[8, 8, 0, 0]} barSize={50}>
+                {dailyData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? '#10b981' : '#ef4444'} />
                 ))}
               </Bar>
