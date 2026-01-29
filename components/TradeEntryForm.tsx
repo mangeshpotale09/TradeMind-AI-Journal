@@ -228,7 +228,7 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Direction</label>
                   <div className="flex bg-[#0a0f1d] p-1 rounded-2xl border border-[#1e293b]">
@@ -239,6 +239,10 @@ const TradeEntryForm: React.FC<TradeEntryFormProps> = ({ initialTrade, onAdd, on
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Quantity</label>
                   <input type="number" required value={quantity} onChange={(e) => setQuantity(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono font-bold transition-all" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Brokerage / Fees (₹)</label>
+                  <input type="number" step="0.01" value={fees} onChange={(e) => setFees(e.target.value)} className="w-full bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none text-white font-mono font-bold transition-all" />
                 </div>
               </div>
 

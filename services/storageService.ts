@@ -211,12 +211,44 @@ export const updateUserStatus = async (userId: string, status: UserStatus): Prom
 
 export const exportTradesToCSV = (trades: Trade[]): void => {
   if (trades.length === 0) return;
-  const headers = ['Symbol', 'Side', 'Entry', 'Exit', 'Qty', 'Fees', 'Net PnL'];
-  const rows = trades.map(t => [t.symbol, t.side, t.entryPrice, t.exitPrice || '', t.quantity, t.fees, calculatePnL(t)]);
+  const headers = [
+    'Symbol', 
+    'Side', 
+    'Entry Price', 
+    'Exit Price', 
+    'Qty', 
+    'Brokerage/Fees', 
+    'Net PnL', 
+    'Strategy', 
+    'Mistakes', 
+    'Mindset', 
+    '% Return on Capital'
+  ];
+  
+  const rows = trades.map(t => {
+    const netPnL = calculatePnL(t);
+    const capitalUsed = t.entryPrice * t.quantity;
+    const returnOnCapital = capitalUsed !== 0 ? ((netPnL / capitalUsed) * 100).toFixed(2) : '0.00';
+    
+    return [
+      t.symbol,
+      t.side,
+      t.entryPrice,
+      t.exitPrice || '',
+      t.quantity,
+      t.fees,
+      netPnL,
+      `"${t.strategies.join('; ')}"`,
+      `"${t.mistakes.join('; ')}"`,
+      `"${t.emotions.join('; ')}"`,
+      `${returnOnCapital}%`
+    ];
+  });
+  
   const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].map(e => e.join(",")).join("\n");
   const link = document.createElement("a");
   link.setAttribute("href", encodeURI(csvContent));
-  link.setAttribute("download", `TradeMind_Export.csv`);
+  link.setAttribute("download", `TradeMind_Execution_Report_${new Date().toISOString().split('T')[0]}.csv`);
   link.click();
 };
 
