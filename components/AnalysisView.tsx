@@ -139,28 +139,28 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
   return (
     <div className="space-y-8 pb-20">
       {/* Best Time to Trade Section */}
-      <section className="bg-[#0e1421] p-8 rounded-[2.5rem] border border-[#1e293b] shadow-2xl overflow-hidden relative">
-        <div className="flex items-center gap-3 mb-8">
-           <div className="bg-emerald-500/10 p-2.5 rounded-2xl text-emerald-500">
-             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+      <section className="bg-[#0e1421] p-6 md:p-8 rounded-[2rem] border border-[#1e293b] shadow-2xl overflow-hidden relative">
+        <div className="flex items-center gap-3 mb-6">
+           <div className="bg-emerald-500/10 p-2 rounded-xl text-emerald-500">
+             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
            </div>
-           <h3 className="text-3xl font-black text-white tracking-tighter">Best Time to Trade</h3>
+           <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">Best Time to Trade</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-          <div className="bg-[#111827] p-6 rounded-3xl border border-emerald-500/10 flex flex-col gap-2 transition-all hover:border-emerald-500/30">
-            <span className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Best Hour</span>
-            <div className="text-4xl font-black text-emerald-400 tracking-tight">{bestHour?.hourLabel || '--'}</div>
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-mono">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <div className="bg-[#111827] p-5 rounded-2xl border border-emerald-500/10 flex flex-col gap-1 transition-all hover:border-emerald-500/30">
+            <span className="text-slate-500 text-[9px] font-black uppercase tracking-[0.2em]">Best Hour</span>
+            <div className="text-2xl font-black text-emerald-400 tracking-tight">{bestHour?.hourLabel || '--'}</div>
+            <div className="flex items-center gap-2 text-slate-500 text-[10px] font-mono">
               <span className="font-bold">₹{bestHour?.pnl.toLocaleString() || '0'}</span>
               <span className="w-1 h-1 rounded-full bg-slate-700"></span>
               <span>{bestHour?.count || 0} trades</span>
             </div>
           </div>
-          <div className="bg-[#111827] p-6 rounded-3xl border border-red-500/10 flex flex-col gap-2 transition-all hover:border-red-500/30">
-            <span className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Worst Hour</span>
-            <div className="text-4xl font-black text-red-400 tracking-tight">{worstHour?.hourLabel || '--'}</div>
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-mono">
+          <div className="bg-[#111827] p-5 rounded-2xl border border-red-500/10 flex flex-col gap-1 transition-all hover:border-red-500/30">
+            <span className="text-slate-500 text-[9px] font-black uppercase tracking-[0.2em]">Worst Hour</span>
+            <div className="text-2xl font-black text-red-400 tracking-tight">{worstHour?.hourLabel || '--'}</div>
+            <div className="flex items-center gap-2 text-slate-500 text-[10px] font-mono">
               <span className="font-bold">₹{worstHour?.pnl.toLocaleString() || '0'}</span>
               <span className="w-1 h-1 rounded-full bg-slate-700"></span>
               <span>{worstHour?.count || 0} trades</span>
@@ -168,34 +168,34 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
           </div>
         </div>
 
-        <div className="h-[350px] w-full pr-4">
+        <div className="h-[300px] w-full pr-4">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={hourlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <BarChart data={hourlyData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={true} horizontal={true} />
               <XAxis 
                 dataKey="hourLabel" 
                 stroke="#64748b" 
-                fontSize={11} 
+                fontSize={10} 
                 fontFamily="Inter, sans-serif"
                 fontWeight={700}
                 axisLine={true} 
                 tickLine={true}
-                dy={10}
+                dy={5}
               />
               <YAxis 
                 stroke="#64748b" 
-                fontSize={10} 
+                fontSize={9} 
                 axisLine={true} 
                 tickLine={true}
                 tickFormatter={(val) => `₹${val}`} 
               />
               <Tooltip 
-                cursor={{ fill: 'rgba(255,255,255,0.03)' }}
-                contentStyle={{ backgroundColor: '#070a13', borderColor: '#1e293b', borderRadius: '16px', color: '#f8fafc' }}
-                itemStyle={{ fontWeight: '900' }}
+                cursor={{ fill: 'rgba(255,255,255,0.02)' }}
+                contentStyle={{ backgroundColor: '#070a13', borderColor: '#1e293b', borderRadius: '12px', color: '#f8fafc' }}
+                itemStyle={{ fontWeight: '900', fontSize: '11px' }}
                 formatter={(value: any) => [`₹${value.toLocaleString()}`, 'Session P&L']}
               />
-              <Bar dataKey="pnl" radius={[8, 8, 0, 0]} barSize={40}>
+              <Bar dataKey="pnl" radius={[6, 6, 0, 0]} barSize={32}>
                 {hourlyData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? '#10b981' : '#ef4444'} />
                 ))}
@@ -206,28 +206,28 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
       </section>
 
       {/* Daily Performance Edge Section */}
-      <section className="bg-[#0e1421] p-8 rounded-[2.5rem] border border-[#1e293b] shadow-2xl overflow-hidden relative">
-        <div className="flex items-center gap-3 mb-8">
-           <div className="bg-blue-500/10 p-2.5 rounded-2xl text-blue-500">
-             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+      <section className="bg-[#0e1421] p-6 md:p-8 rounded-[2rem] border border-[#1e293b] shadow-2xl overflow-hidden relative">
+        <div className="flex items-center gap-3 mb-6">
+           <div className="bg-blue-500/10 p-2 rounded-xl text-blue-500">
+             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
            </div>
-           <h3 className="text-3xl font-black text-white tracking-tighter">Daily Performance Edge</h3>
+           <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">Daily Performance Edge</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-          <div className="bg-[#111827] p-6 rounded-3xl border border-emerald-500/10 flex flex-col gap-2 transition-all hover:border-emerald-500/30">
-            <span className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Most Profitable Day</span>
-            <div className="text-4xl font-black text-emerald-400 tracking-tight">{bestDay?.dayLabel || '--'}</div>
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-mono">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <div className="bg-[#111827] p-5 rounded-2xl border border-emerald-500/10 flex flex-col gap-1 transition-all hover:border-emerald-500/30">
+            <span className="text-slate-500 text-[9px] font-black uppercase tracking-[0.2em]">Most Profitable Day</span>
+            <div className="text-2xl font-black text-emerald-400 tracking-tight">{bestDay?.dayLabel || '--'}</div>
+            <div className="flex items-center gap-2 text-slate-500 text-[10px] font-mono">
               <span className="font-bold">₹{bestDay?.pnl.toLocaleString() || '0'}</span>
               <span className="w-1 h-1 rounded-full bg-slate-700"></span>
               <span>{bestDay?.count || 0} trades</span>
             </div>
           </div>
-          <div className="bg-[#111827] p-6 rounded-3xl border border-red-500/10 flex flex-col gap-2 transition-all hover:border-red-500/30">
-            <span className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Least Profitable Day</span>
-            <div className="text-4xl font-black text-red-400 tracking-tight">{worstDay?.dayLabel || '--'}</div>
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-mono">
+          <div className="bg-[#111827] p-5 rounded-2xl border border-red-500/10 flex flex-col gap-1 transition-all hover:border-red-500/30">
+            <span className="text-slate-500 text-[9px] font-black uppercase tracking-[0.2em]">Least Profitable Day</span>
+            <div className="text-2xl font-black text-red-400 tracking-tight">{worstDay?.dayLabel || '--'}</div>
+            <div className="flex items-center gap-2 text-slate-500 text-[10px] font-mono">
               <span className="font-bold">₹{worstDay?.pnl.toLocaleString() || '0'}</span>
               <span className="w-1 h-1 rounded-full bg-slate-700"></span>
               <span>{worstDay?.count || 0} trades</span>
@@ -235,43 +235,43 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
           </div>
         </div>
 
-        <div className="h-[350px] w-full pr-4">
+        <div className="h-[300px] w-full pr-4">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dailyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <BarChart data={dailyData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={true} horizontal={true} />
               <XAxis 
                 dataKey="dayLabel" 
                 stroke="#64748b" 
-                fontSize={11} 
+                fontSize={10} 
                 fontFamily="Inter, sans-serif"
                 fontWeight={700}
                 axisLine={true} 
                 tickLine={true}
-                dy={10}
+                dy={5}
               />
               <YAxis 
                 stroke="#64748b" 
-                fontSize={10} 
+                fontSize={9} 
                 axisLine={true} 
                 tickLine={true}
                 tickFormatter={(val) => `₹${val}`} 
               />
               <Tooltip 
-                cursor={{ fill: 'rgba(255,255,255,0.03)' }}
-                contentStyle={{ backgroundColor: '#070a13', borderColor: '#1e293b', borderRadius: '16px', color: '#f8fafc' }}
-                itemStyle={{ fontWeight: '900' }}
+                cursor={{ fill: 'rgba(255,255,255,0.02)' }}
+                contentStyle={{ backgroundColor: '#070a13', borderColor: '#1e293b', borderRadius: '12px', color: '#f8fafc' }}
+                itemStyle={{ fontWeight: '900', fontSize: '11px' }}
                 formatter={(value: any, name: any, props: any) => {
                   const item = props.payload;
                   return [
                     <div key="tooltip-content" className="flex flex-col gap-1">
                       <div className="font-black text-slate-200">₹{item.pnl.toLocaleString()}</div>
-                      <div className="text-[10px] text-slate-400 uppercase tracking-widest">{item.count} Executions</div>
+                      <div className="text-[9px] text-slate-400 uppercase tracking-widest">{item.count} Executions</div>
                     </div>,
                     'Performance'
                   ];
                 }}
               />
-              <Bar dataKey="pnl" radius={[8, 8, 0, 0]} barSize={50}>
+              <Bar dataKey="pnl" radius={[6, 6, 0, 0]} barSize={40}>
                 {dailyData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? '#10b981' : '#ef4444'} />
                 ))}
@@ -284,14 +284,14 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
       <section className="bg-[#0e1421] p-6 rounded-2xl border border-[#1e293b] shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h3 className="text-xl font-black text-white">Performance Heatmap</h3>
-            <p className="text-slate-500 text-sm font-bold uppercase tracking-tight">Daily realization tracking</p>
+            <h3 className="text-lg font-black text-white">Performance Heatmap</h3>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-tight">Daily realization tracking</p>
           </div>
           <div className="flex items-center gap-2 bg-[#0a0f1d] p-1 rounded-lg border border-[#1e293b]">
             <button onClick={handlePrevMonth} className="p-2 hover:bg-[#111827] text-slate-400 rounded-md transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
             </button>
-            <span className="px-4 font-black text-white text-sm uppercase">
+            <span className="px-4 font-black text-white text-xs uppercase tracking-widest">
               {viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
             </span>
             <button onClick={handleNextMonth} className="p-2 hover:bg-[#111827] text-slate-400 rounded-md transition-colors">
@@ -303,14 +303,14 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
       </section>
 
       <section className="bg-[#0e1421] p-6 rounded-2xl border border-[#1e293b] shadow-xl">
-        <h3 className="text-lg font-black mb-6 text-white flex items-center gap-3">
+        <h3 className="text-base font-black mb-6 text-white flex items-center gap-3">
            <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
            Weekly Performance Breakdown
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-[#0a0f1d] text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-[#1e293b]">
+              <tr className="bg-[#0a0f1d] text-slate-500 text-[9px] font-black uppercase tracking-widest border-b border-[#1e293b]">
                 <th className="px-6 py-4">Week Identifier</th>
                 <th className="px-6 py-4">Total Trades</th>
                 <th className="px-6 py-4">Wins / Losses</th>
@@ -325,19 +325,19 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
                 </tr>
               ) : weeklyBreakdown.map((wb) => (
                 <tr key={wb.week} className="hover:bg-[#111827] transition-colors">
-                  <td className="px-6 py-4 font-black text-white">{wb.week}</td>
-                  <td className="px-6 py-4 text-slate-300 font-mono">{wb.count}</td>
+                  <td className="px-6 py-4 font-black text-white text-xs tracking-tight">{wb.week}</td>
+                  <td className="px-6 py-4 text-slate-300 font-mono text-xs">{wb.count}</td>
                   <td className="px-6 py-4">
                     <div className="flex gap-2">
-                      <span className="text-emerald-400 font-bold">{wb.win}W</span>
-                      <span className="text-slate-600">/</span>
-                      <span className="text-red-400 font-bold">{wb.loss}L</span>
+                      <span className="text-emerald-400 font-bold text-[11px]">{wb.win}W</span>
+                      <span className="text-slate-600 text-[11px]">/</span>
+                      <span className="text-red-400 font-bold text-[11px]">{wb.loss}L</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 font-mono text-slate-400">
+                  <td className="px-6 py-4 font-mono text-slate-400 text-xs">
                     {((wb.win / wb.count) * 100).toFixed(1)}%
                   </td>
-                  <td className={`px-6 py-4 text-right font-mono font-black ${wb.grossProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  <td className={`px-6 py-4 text-right font-mono font-black text-xs ${wb.grossProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     ₹{wb.grossProfit.toLocaleString()}
                   </td>
                 </tr>
@@ -349,21 +349,22 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-[#0e1421] p-6 rounded-2xl border border-[#1e293b] shadow-xl">
-          <h3 className="text-lg font-black mb-6 text-white flex items-center gap-3">
+          <h3 className="text-base font-black mb-6 text-white flex items-center gap-3">
              <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-             Top Performing Symbols (INR)
+             Top Symbols (INR)
           </h3>
-          <div className="h-[350px]">
+          <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={symbolData} layout="vertical" margin={{ left: 20, right: 30 }}>
+              <BarChart data={symbolData} layout="vertical" margin={{ left: 10, right: 30 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} vertical={true} />
-                <XAxis type="number" stroke="#64748b" fontSize={10} axisLine={false} tickLine={false} />
-                <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={10} axisLine={false} tickLine={false} width={80} />
+                <XAxis type="number" stroke="#64748b" fontSize={9} axisLine={false} tickLine={false} />
+                <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={9} axisLine={false} tickLine={false} width={80} />
                 <Tooltip 
-                   contentStyle={{ backgroundColor: '#070a13', borderColor: '#1e293b', color: '#f8fafc' }}
+                   contentStyle={{ backgroundColor: '#070a13', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '12px' }}
+                   itemStyle={{ fontSize: '11px', fontWeight: '900' }}
                    formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'Total P&L']}
                 />
-                <Bar dataKey="pnl" radius={[0, 4, 4, 0]} barSize={40}>
+                <Bar dataKey="pnl" radius={[0, 4, 4, 0]} barSize={28}>
                   {symbolData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? '#10b981' : '#ef4444'} />
                   ))}
@@ -374,22 +375,22 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
         </div>
 
         <div className="bg-[#0e1421] p-6 rounded-2xl border border-[#1e293b] shadow-xl">
-          <h3 className="text-lg font-black mb-6 text-white">Strategy Breakdown</h3>
-          <div className="space-y-4">
+          <h3 className="text-base font-black mb-6 text-white">Strategy Breakdown</h3>
+          <div className="space-y-3">
             {strategyData.map((s, idx) => (
-              <div key={s.name} className="flex items-center justify-between p-4 bg-[#0a0f1d] rounded-2xl border border-[#1e293b] transition-colors hover:border-emerald-500/30">
-                <div className="flex items-center gap-4">
-                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-black text-xs border border-emerald-500/20">
+              <div key={s.name} className="flex items-center justify-between p-3.5 bg-[#0a0f1d] rounded-xl border border-[#1e293b] transition-colors hover:border-emerald-500/30">
+                <div className="flex items-center gap-3">
+                   <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-black text-[10px] border border-emerald-500/20">
                     {idx + 1}
                   </div>
                   <div>
-                    <div className="font-black text-white">{s.name}</div>
-                    <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-0.5">
-                      {s.count} Executions • {((s.win/s.count)*100).toFixed(0)}% Win Rate
+                    <div className="font-black text-white text-xs">{s.name}</div>
+                    <div className="text-[8px] text-slate-600 font-black uppercase tracking-widest mt-0.5">
+                      {s.count} Trades • {((s.win/s.count)*100).toFixed(0)}% Win Rate
                     </div>
                   </div>
                 </div>
-                <div className={`font-mono font-black text-lg ${s.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                <div className={`font-mono font-black text-sm ${s.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   ₹{s.pnl.toLocaleString()}
                 </div>
               </div>
@@ -416,26 +417,26 @@ const PnLCalendar = ({ viewDate, data }: { viewDate: Date; data: Record<string, 
   }, [viewDate, data, firstDayOfMonth, daysInMonth]);
 
   return (
-    <div className="grid grid-cols-7 gap-1 md:gap-3">
+    <div className="grid grid-cols-7 gap-1 md:gap-2">
       {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((d, i) => (
-        <div key={i} className="text-center text-[10px] font-black text-slate-600 uppercase tracking-widest pb-4">{d}</div>
+        <div key={i} className="text-center text-[8px] font-black text-slate-600 uppercase tracking-widest pb-3">{d}</div>
       ))}
       {monthDays.map((d, i) => (
         <div 
           key={i} 
-          className={`min-h-[50px] md:min-h-[90px] p-2 rounded-2xl border transition-all ${
+          className={`min-h-[40px] md:min-h-[70px] p-1.5 rounded-xl border transition-all ${
             d ? 'bg-[#0a0f1d] border-[#1e293b] hover:border-[#334155]' : 'border-transparent opacity-0'
           } ${d?.stats && (d.stats.pnl > 0 ? 'bg-emerald-500/5 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]' : d.stats.pnl < 0 ? 'bg-red-500/5 border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.05)]' : '')}`}
         >
           {d && (
             <div className="flex flex-col h-full">
-              <div className="text-[10px] font-black text-slate-500 mb-1">{d.day}</div>
+              <div className="text-[8px] font-black text-slate-600 mb-0.5">{d.day}</div>
               {d.stats && (
                 <div className="flex flex-col h-full justify-center text-center">
-                  <div className={`text-[10px] md:text-sm font-black ${d.stats.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  <div className={`text-[9px] md:text-xs font-black tracking-tighter ${d.stats.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {d.stats.pnl >= 0 ? '+' : ''}₹{Math.abs(d.stats.pnl).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </div>
-                  <div className="text-[8px] text-slate-600 font-bold uppercase mt-1">{d.stats.count} T</div>
+                  <div className="text-[7px] text-slate-700 font-bold uppercase mt-0.5">{d.stats.count}T</div>
                 </div>
               )}
             </div>
