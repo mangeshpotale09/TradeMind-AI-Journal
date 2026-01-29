@@ -21,13 +21,39 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   };
 
+  const hourlyData = useMemo(() => {
+    const hours = [9, 10, 11, 12, 13, 14, 15]; // Trading hours 9 AM to 3 PM
+    const map: Record<number, { hourLabel: string; pnl: number; count: number }> = {};
+    
+    hours.forEach(h => {
+      const label = h === 12 ? '12 PM' : h > 12 ? `${h - 12} PM` : `${h} AM`;
+      map[h] = { hourLabel: label, pnl: 0, count: 0 };
+    });
+
+    closedTrades.forEach(t => {
+      const entryHour = new Date(t.entryDate).getHours();
+      if (map[entryHour]) {
+        map[entryHour].pnl += calculateGrossPnL(t);
+        map[entryHour].count++;
+      }
+    });
+
+    return Object.values(map);
+  }, [closedTrades]);
+
+  const bestHour = useMemo(() => {
+    return [...hourlyData].sort((a, b) => b.pnl - a.pnl)[0];
+  }, [hourlyData]);
+
+  const worstHour = useMemo(() => {
+    return [...hourlyData].sort((a, b) => a.pnl - b.pnl)[0];
+  }, [hourlyData]);
+
   const weeklyBreakdown = useMemo(() => {
-    // Group by week (ISO week or similar)
     const weeks: Record<string, { week: string; win: number; loss: number; grossProfit: number; count: number }> = {};
     
     closedTrades.forEach(t => {
       const exitDate = new Date(t.exitDate!);
-      // Simple week calculation: Year-WeekNumber
       const firstDayOfYear = new Date(exitDate.getFullYear(), 0, 1);
       const pastDaysOfYear = (exitDate.getTime() - firstDayOfYear.getTime()) / 86400000;
       const weekNum = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
@@ -44,23 +70,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
       else if (pnl < 0) weeks[weekKey].loss++;
     });
 
-    return Object.values(weeks).sort((a, b) => b.week.localeCompare(a.week)).slice(0, 12); // Last 12 weeks
-  }, [closedTrades]);
-
-  const weekdayData = useMemo(() => {
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const results = days.map(day => ({ day, win: 0, loss: 0, pnl: 0, count: 0 }));
-
-    closedTrades.forEach(t => {
-      const dayIdx = new Date(t.entryDate).getDay();
-      const pnl = calculateGrossPnL(t);
-      results[dayIdx].count++;
-      results[dayIdx].pnl += pnl;
-      if (pnl > 0) results[dayIdx].win++;
-      else if (pnl < 0) results[dayIdx].loss++;
-    });
-
-    return results.filter(r => r.day !== 'Sunday' && r.day !== 'Saturday');
+    return Object.values(weeks).sort((a, b) => b.week.localeCompare(a.week)).slice(0, 12);
   }, [closedTrades]);
 
   const strategyData = useMemo(() => {
@@ -100,6 +110,73 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
 
   return (
     <div className="space-y-8 pb-20">
+      {/* Best Time to Trade Section */}
+      <section className="bg-[#0e1421] p-8 rounded-[2.5rem] border border-[#1e293b] shadow-2xl overflow-hidden relative">
+        <div className="flex items-center gap-3 mb-8">
+           <div className="bg-emerald-500/10 p-2.5 rounded-2xl text-emerald-500">
+             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+           </div>
+           <h3 className="text-3xl font-black text-white tracking-tighter">Best Time to Trade</h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+          <div className="bg-[#111827] p-6 rounded-3xl border border-emerald-500/10 flex flex-col gap-2 transition-all hover:border-emerald-500/30">
+            <span className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Best Hour</span>
+            <div className="text-4xl font-black text-emerald-400 tracking-tight">{bestHour?.hourLabel || '--'}</div>
+            <div className="flex items-center gap-2 text-slate-400 text-xs font-mono">
+              <span className="font-bold">₹{bestHour?.pnl.toLocaleString() || '0'}</span>
+              <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+              <span>{bestHour?.count || 0} trades</span>
+            </div>
+          </div>
+          <div className="bg-[#111827] p-6 rounded-3xl border border-red-500/10 flex flex-col gap-2 transition-all hover:border-red-500/30">
+            <span className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Worst Hour</span>
+            <div className="text-4xl font-black text-red-400 tracking-tight">{worstHour?.hourLabel || '--'}</div>
+            <div className="flex items-center gap-2 text-slate-400 text-xs font-mono">
+              <span className="font-bold">₹{worstHour?.pnl.toLocaleString() || '0'}</span>
+              <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+              <span>{worstHour?.count || 0} trades</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="h-[350px] w-full pr-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={hourlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={true} horizontal={true} />
+              <XAxis 
+                dataKey="hourLabel" 
+                stroke="#64748b" 
+                fontSize={11} 
+                fontFamily="Inter, sans-serif"
+                fontWeight={700}
+                axisLine={true} 
+                tickLine={true}
+                dy={10}
+              />
+              <YAxis 
+                stroke="#64748b" 
+                fontSize={10} 
+                axisLine={true} 
+                tickLine={true}
+                tickFormatter={(val) => `₹${val}`} 
+              />
+              <Tooltip 
+                cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                contentStyle={{ backgroundColor: '#070a13', borderColor: '#1e293b', borderRadius: '16px', color: '#f8fafc' }}
+                itemStyle={{ fontWeight: '900' }}
+                formatter={(value: any) => [`₹${value.toLocaleString()}`, 'Session P&L']}
+              />
+              <Bar dataKey="pnl" radius={[8, 8, 0, 0]} barSize={40}>
+                {hourlyData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? '#10b981' : '#ef4444'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+
       <section className="bg-[#0e1421] p-6 rounded-2xl border border-[#1e293b] shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
@@ -121,7 +198,6 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
         <PnLCalendar viewDate={viewDate} data={calendarData} />
       </section>
 
-      {/* Weekly Performance Breakdown */}
       <section className="bg-[#0e1421] p-6 rounded-2xl border border-[#1e293b] shadow-xl">
         <h3 className="text-lg font-black mb-6 text-white flex items-center gap-3">
            <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
