@@ -144,6 +144,14 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
     return closedTrades.filter(t => new Date(t.exitDate!).toISOString().split('T')[0] === selectedDate);
   }, [selectedDate, closedTrades]);
 
+  const selectedDateStats = useMemo(() => {
+    if (tradesForSelectedDate.length === 0) return { pnl: 0, count: 0 };
+    return {
+      pnl: tradesForSelectedDate.reduce((acc, t) => acc + calculatePnL(t), 0),
+      count: tradesForSelectedDate.length
+    };
+  }, [tradesForSelectedDate]);
+
   const formatDateLong = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('default', { day: 'numeric', month: 'long', year: 'numeric' });
   };
@@ -297,7 +305,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h3 className="text-lg font-black text-white">Performance Heatmap</h3>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-tight">Click on a date to view trades</p>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-tight">Click on a date to view detailed execution logs</p>
           </div>
           <div className="flex items-center gap-2 bg-[#0a0f1d] p-1 rounded-lg border border-[#1e293b]">
             <button onClick={handlePrevMonth} className="p-2 hover:bg-[#111827] text-slate-400 rounded-md transition-colors">
@@ -317,67 +325,109 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
           selectedDate={selectedDate}
           onDateClick={setSelectedDate}
         />
+      </section>
 
-        {/* Selected Date Trades View */}
-        {selectedDate && (
-          <div className="mt-8 animate-in slide-in-from-top duration-300">
-            <div className="flex items-center justify-between mb-6">
-              <h4 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-3">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                Executions for {formatDateLong(selectedDate)}
-              </h4>
+      {/* High-Fidelity Modal Overlay for Daily Trades */}
+      {selectedDate && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#0e1421] rounded-3xl border border-[#1e293b] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in duration-300">
+            {/* Modal Header */}
+            <div className="p-6 md:p-8 border-b border-[#1e293b] flex justify-between items-center bg-[#0a0f1d]/50">
+              <div className="flex items-center gap-5">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black ${selectedDateStats.pnl >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                   {selectedDateStats.pnl >= 0 ? '+' : '-'}
+                </div>
+                <div>
+                  <h4 className="text-xl md:text-2xl font-black text-white tracking-tighter">
+                    {formatDateLong(selectedDate)}
+                  </h4>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${selectedDateStats.pnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {selectedDateStats.pnl >= 0 ? 'Net Green' : 'Net Red'} • ₹{Math.abs(selectedDateStats.pnl).toLocaleString()}
+                    </span>
+                    <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      {selectedDateStats.count} Execution{selectedDateStats.count !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+              </div>
               <button 
                 onClick={() => setSelectedDate(null)}
-                className="text-[9px] font-black uppercase text-slate-500 hover:text-white transition-colors"
+                className="p-3 bg-[#111827] hover:bg-[#1e293b] border border-[#1e293b] text-slate-400 hover:text-white rounded-2xl transition-all"
               >
-                Close Logs
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
-            {tradesForSelectedDate.length === 0 ? (
-              <div className="p-10 border-2 border-dashed border-[#1e293b] rounded-2xl text-center">
-                 <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">No realizations on this date</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {tradesForSelectedDate.map(trade => {
+
+            {/* Modal Content - Scrollable Trade List */}
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-4 custom-scrollbar">
+              {tradesForSelectedDate.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                  <div className="w-16 h-16 bg-[#0a0f1d] border border-[#1e293b] rounded-2xl flex items-center justify-center text-slate-700">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                  </div>
+                  <p className="text-sm font-black text-slate-500 uppercase tracking-widest">No realizations found on current tape.</p>
+                </div>
+              ) : (
+                tradesForSelectedDate.map(trade => {
                   const pnl = calculatePnL(trade);
                   return (
-                    <div key={trade.id} className="bg-[#0a0f1d] border border-[#1e293b] p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-emerald-500/30 transition-all group">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-black text-xs ${trade.side === TradeSide.LONG ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                          {trade.side === TradeSide.LONG ? 'L' : 'S'}
+                    <div key={trade.id} className="bg-[#0a0f1d] border border-[#1e293b] p-5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-emerald-500/30 transition-all group relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-transparent via-emerald-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      
+                      <div className="flex items-center gap-5">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm border ${trade.side === TradeSide.LONG ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                          {trade.side === TradeSide.LONG ? 'LONG' : 'SHORT'}
                         </div>
                         <div>
-                          <div className="font-black text-white text-sm group-hover:text-emerald-400 transition-colors">{trade.symbol}</div>
-                          <div className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
-                            {trade.strategies.join(' • ') || 'No Strategy Tag'}
+                          <div className="font-black text-white text-lg group-hover:text-emerald-400 transition-colors tracking-tight">{trade.symbol}</div>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {trade.strategies.length > 0 ? (
+                               trade.strategies.map(s => (
+                                 <span key={s} className="text-[8px] font-black text-slate-500 border border-[#1e293b] px-1.5 py-0.5 rounded uppercase">{s}</span>
+                               ))
+                            ) : (
+                               <span className="text-[8px] font-black text-slate-700 uppercase">Untagged Logic</span>
+                            )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-10">
+
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-8 items-center">
                         <div className="text-right">
-                          <div className="text-[8px] text-slate-600 font-black uppercase tracking-widest mb-0.5">Quantity</div>
-                          <div className="text-xs font-mono font-bold text-slate-300">{trade.quantity}</div>
+                          <div className="text-[8px] text-slate-600 font-black uppercase tracking-widest mb-1">Execution Size</div>
+                          <div className="text-xs font-mono font-bold text-slate-300">{trade.quantity} Units</div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-[8px] text-slate-600 font-black uppercase tracking-widest mb-0.5">Execution Value</div>
-                          <div className="text-xs font-mono font-bold text-slate-300">₹{trade.entryPrice.toLocaleString()} → ₹{trade.exitPrice?.toLocaleString()}</div>
+                        <div className="text-right hidden md:block">
+                          <div className="text-[8px] text-slate-600 font-black uppercase tracking-widest mb-1">Entry → Exit</div>
+                          <div className="text-xs font-mono font-bold text-slate-400">₹{trade.entryPrice.toLocaleString()} → <span className="text-slate-200">₹{trade.exitPrice?.toLocaleString()}</span></div>
                         </div>
-                        <div className="text-right min-w-[100px]">
-                          <div className="text-[8px] text-slate-600 font-black uppercase tracking-widest mb-0.5">Net P&L</div>
-                          <div className={`text-sm font-mono font-black ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        <div className="text-right min-w-[120px]">
+                          <div className="text-[8px] text-slate-600 font-black uppercase tracking-widest mb-1">Net Realized P&L</div>
+                          <div className={`text-lg font-mono font-black ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {pnl >= 0 ? '+' : ''}₹{pnl.toLocaleString()}
                           </div>
                         </div>
                       </div>
                     </div>
                   );
-                })}
-              </div>
-            )}
+                })
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 bg-[#0a0f1d] border-t border-[#1e293b] flex justify-end">
+              <button 
+                onClick={() => setSelectedDate(null)}
+                className="bg-[#111827] hover:bg-[#1e293b] text-slate-300 font-black px-8 py-3 rounded-xl border border-[#1e293b] transition-all text-[10px] uppercase tracking-widest"
+              >
+                Return to Analysis
+              </button>
+            </div>
           </div>
-        )}
-      </section>
+        </div>
+      )}
 
       <section className="bg-[#0e1421] p-6 rounded-2xl border border-[#1e293b] shadow-xl">
         <h3 className="text-base font-black mb-6 text-white flex items-center gap-3">
