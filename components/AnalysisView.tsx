@@ -1,8 +1,8 @@
 
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Trade, TradeStatus } from '../types';
-import { calculateGrossPnL } from '../services/storageService';
+import { Trade, TradeStatus, TradeSide } from '../types';
+import { calculateGrossPnL, calculatePnL } from '../services/storageService';
 
 interface AnalysisViewProps {
   trades: Trade[];
@@ -10,15 +10,18 @@ interface AnalysisViewProps {
 
 const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
   const [viewDate, setViewDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const closedTrades = useMemo(() => trades.filter(t => t.status === TradeStatus.CLOSED), [trades]);
 
   const handlePrevMonth = () => {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
+    setSelectedDate(null);
   };
 
   const handleNextMonth = () => {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
+    setSelectedDate(null);
   };
 
   const hourlyData = useMemo(() => {
@@ -135,6 +138,15 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
     });
     return map;
   }, [closedTrades]);
+
+  const tradesForSelectedDate = useMemo(() => {
+    if (!selectedDate) return [];
+    return closedTrades.filter(t => new Date(t.exitDate!).toISOString().split('T')[0] === selectedDate);
+  }, [selectedDate, closedTrades]);
+
+  const formatDateLong = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('default', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
 
   return (
     <div className="space-y-8 pb-20">
@@ -285,7 +297,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h3 className="text-lg font-black text-white">Performance Heatmap</h3>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-tight">Daily realization tracking</p>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-tight">Click on a date to view trades</p>
           </div>
           <div className="flex items-center gap-2 bg-[#0a0f1d] p-1 rounded-lg border border-[#1e293b]">
             <button onClick={handlePrevMonth} className="p-2 hover:bg-[#111827] text-slate-400 rounded-md transition-colors">
@@ -299,7 +311,72 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
             </button>
           </div>
         </div>
-        <PnLCalendar viewDate={viewDate} data={calendarData} />
+        <PnLCalendar 
+          viewDate={viewDate} 
+          data={calendarData} 
+          selectedDate={selectedDate}
+          onDateClick={setSelectedDate}
+        />
+
+        {/* Selected Date Trades View */}
+        {selectedDate && (
+          <div className="mt-8 animate-in slide-in-from-top duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h4 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-3">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                Executions for {formatDateLong(selectedDate)}
+              </h4>
+              <button 
+                onClick={() => setSelectedDate(null)}
+                className="text-[9px] font-black uppercase text-slate-500 hover:text-white transition-colors"
+              >
+                Close Logs
+              </button>
+            </div>
+            {tradesForSelectedDate.length === 0 ? (
+              <div className="p-10 border-2 border-dashed border-[#1e293b] rounded-2xl text-center">
+                 <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">No realizations on this date</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {tradesForSelectedDate.map(trade => {
+                  const pnl = calculatePnL(trade);
+                  return (
+                    <div key={trade.id} className="bg-[#0a0f1d] border border-[#1e293b] p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-emerald-500/30 transition-all group">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-black text-xs ${trade.side === TradeSide.LONG ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                          {trade.side === TradeSide.LONG ? 'L' : 'S'}
+                        </div>
+                        <div>
+                          <div className="font-black text-white text-sm group-hover:text-emerald-400 transition-colors">{trade.symbol}</div>
+                          <div className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
+                            {trade.strategies.join(' • ') || 'No Strategy Tag'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-10">
+                        <div className="text-right">
+                          <div className="text-[8px] text-slate-600 font-black uppercase tracking-widest mb-0.5">Quantity</div>
+                          <div className="text-xs font-mono font-bold text-slate-300">{trade.quantity}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[8px] text-slate-600 font-black uppercase tracking-widest mb-0.5">Execution Value</div>
+                          <div className="text-xs font-mono font-bold text-slate-300">₹{trade.entryPrice.toLocaleString()} → ₹{trade.exitPrice?.toLocaleString()}</div>
+                        </div>
+                        <div className="text-right min-w-[100px]">
+                          <div className="text-[8px] text-slate-600 font-black uppercase tracking-widest mb-0.5">Net P&L</div>
+                          <div className={`text-sm font-mono font-black ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {pnl >= 0 ? '+' : ''}₹{pnl.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="bg-[#0e1421] p-6 rounded-2xl border border-[#1e293b] shadow-xl">
@@ -402,7 +479,14 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ trades }) => {
   );
 };
 
-const PnLCalendar = ({ viewDate, data }: { viewDate: Date; data: Record<string, { pnl: number; count: number }> }) => {
+interface PnLCalendarProps {
+  viewDate: Date;
+  data: Record<string, { pnl: number; count: number }>;
+  selectedDate: string | null;
+  onDateClick: (date: string) => void;
+}
+
+const PnLCalendar = ({ viewDate, data, selectedDate, onDateClick }: PnLCalendarProps) => {
   const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
   
@@ -422,15 +506,17 @@ const PnLCalendar = ({ viewDate, data }: { viewDate: Date; data: Record<string, 
         <div key={i} className="text-center text-[8px] font-black text-slate-600 uppercase tracking-widest pb-3">{d}</div>
       ))}
       {monthDays.map((d, i) => (
-        <div 
+        <button 
           key={i} 
-          className={`min-h-[40px] md:min-h-[70px] p-1.5 rounded-xl border transition-all ${
-            d ? 'bg-[#0a0f1d] border-[#1e293b] hover:border-[#334155]' : 'border-transparent opacity-0'
-          } ${d?.stats && (d.stats.pnl > 0 ? 'bg-emerald-500/5 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]' : d.stats.pnl < 0 ? 'bg-red-500/5 border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.05)]' : '')}`}
+          disabled={!d}
+          onClick={() => d && onDateClick(d.dateStr)}
+          className={`min-h-[40px] md:min-h-[70px] p-1.5 rounded-xl border transition-all text-left group outline-none ${
+            d ? 'bg-[#0a0f1d] border-[#1e293b] hover:border-slate-500 cursor-pointer' : 'border-transparent opacity-0 cursor-default'
+          } ${d?.dateStr === selectedDate ? 'border-emerald-500 ring-2 ring-emerald-500/20 shadow-lg scale-[1.02]' : ''} ${d?.stats && (d.stats.pnl > 0 ? 'bg-emerald-500/5 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]' : d.stats.pnl < 0 ? 'bg-red-500/5 border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.05)]' : '')}`}
         >
           {d && (
             <div className="flex flex-col h-full">
-              <div className="text-[8px] font-black text-slate-600 mb-0.5">{d.day}</div>
+              <div className={`text-[8px] font-black mb-0.5 transition-colors ${d.dateStr === selectedDate ? 'text-emerald-400' : 'text-slate-600 group-hover:text-slate-300'}`}>{d.day}</div>
               {d.stats && (
                 <div className="flex flex-col h-full justify-center text-center">
                   <div className={`text-[9px] md:text-xs font-black tracking-tighter ${d.stats.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -441,7 +527,7 @@ const PnLCalendar = ({ viewDate, data }: { viewDate: Date; data: Record<string, 
               )}
             </div>
           )}
-        </div>
+        </button>
       ))}
     </div>
   );
